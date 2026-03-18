@@ -19,7 +19,7 @@ class ConversationResponse(ConversationCreate):
 class MedicineCreate(BaseModel):
     name: str
     dose: str
-    times: str
+    alarm_times: str  # 예: "08:30,13:00,19:00"
     start_date: str
     end_date: str
 

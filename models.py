@@ -17,9 +17,9 @@ class Medicine(Base):
     __tablename__ = "medicines"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)                          # 약 이름
-    dose = Column(String)                          # 용량
-    times = Column(String)                         # 아침/점심/저녁
+    name = Column(String)        # 약 이름
+    dose = Column(String)        # 용량
+    alarm_times = Column(String) # 알림 시간 (예: "08:30,13:00,19:00")
     start_date = Column(String)
     end_date = Column(String)
 
@@ -38,4 +38,7 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True, index=True)
-    type = Column(String)
+    type = Column(String)                          # 알림 종류
+    message = Column(String)                       # 알림 내용
+    is_resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.now())
