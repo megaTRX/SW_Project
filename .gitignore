@@ -1,0 +1,4 @@
+chatbot.db
+*.db
+__pycache__/
+detection.log
