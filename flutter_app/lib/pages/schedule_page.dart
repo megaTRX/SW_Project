@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
+import '../data/api_service.dart';
 
 class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key});
@@ -9,7 +9,27 @@ class SchedulePage extends StatefulWidget {
 }
 
 class _SchedulePageState extends State<SchedulePage> {
-  final List<Map> _scheds = List.from(mockScheds);
+  List<Map> _scheds = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScheds();
+  }
+
+  Future<void> _loadScheds() async {
+    setState(() => _isLoading = true);
+    final data = await ApiService.getSchedules();
+    setState(() {
+      _scheds = data.isEmpty ? [
+        {"title": "복지관 방문", "time": "15:00", "status": "예정"},
+        {"title": "딸과 통화", "time": "19:00", "status": "예정"},
+        {"title": "병원 예약", "time": "2026-03-12 11:00", "status": "예정"},
+      ] : data;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,87 +81,101 @@ class _SchedulePageState extends State<SchedulePage> {
 
           const SizedBox(height: 20),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          if (_isLoading)
+            const Center(child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+            ))
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
 
-                // 오늘 일정
-                if (today.isNotEmpty) ...[
-                  const Text('📅 오늘 일정',
+                  // 오늘 일정
+                  if (today.isNotEmpty) ...[
+                    const Text('📅 오늘 일정',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                    const SizedBox(height: 10),
+                    ...today.map((s) {
+                      final i = _scheds.indexOf(s);
+                      return _SchedCard(
+                        sched: s,
+                        onStatusChange: (status) async {
+                          if (status == "완료" && s["id"] != null) {
+                            await ApiService.completeSchedule(s["id"]);
+                          }
+                          setState(() => _scheds[i]["status"] = status);
+                        },
+                      );
+                    }),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // 예정 일정
+                  if (upcoming.isNotEmpty) ...[
+                    const Text('🗓 예정 일정',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                    const SizedBox(height: 10),
+                    ...upcoming.map((s) {
+                      final i = _scheds.indexOf(s);
+                      return _SchedCard(
+                        sched: s,
+                        onStatusChange: (status) async {
+                          if (status == "완료" && s["id"] != null) {
+                            await ApiService.completeSchedule(s["id"]);
+                          }
+                          setState(() => _scheds[i]["status"] = status);
+                        },
+                      );
+                    }),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // 일정 추가
+                  const Text('➕ 일정 추가',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                   const SizedBox(height: 10),
-                  ...today.map((s) {
-                    final i = _scheds.indexOf(s);
-                    return _SchedCard(
-                      sched: s,
-                      onStatusChange: (status) => setState(() => _scheds[i]["status"] = status),
-                    );
+                  _AddSchedCard(onAdd: (title, time) async {
+                    await ApiService.addSchedule(title, time);
+                    _loadScheds();
                   }),
+
                   const SizedBox(height: 20),
-                ],
 
-                // 예정 일정
-                if (upcoming.isNotEmpty) ...[
-                  const Text('🗓 예정 일정',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                  const SizedBox(height: 10),
-                  ...upcoming.map((s) {
-                    final i = _scheds.indexOf(s);
-                    return _SchedCard(
-                      sched: s,
-                      onStatusChange: (status) => setState(() => _scheds[i]["status"] = status),
-                    );
-                  }),
-                  const SizedBox(height: 20),
-                ],
-
-                // 일정 추가
-                const Text('➕ 일정 추가',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                const SizedBox(height: 10),
-                _AddSchedCard(onAdd: (title, time) {
-                  setState(() {
-                    _scheds.add({"title": title, "time": time, "status": "예정"});
-                  });
-                }),
-
-                const SizedBox(height: 20),
-
-                // 안내
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFBFDBFE)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_rounded, color: Color(0xFF0EA5E9), size: 20),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          '일정 시간이 되면 챗봇이 음성으로 알려드립니다.',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF0369A1)),
+                  // 안내
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_rounded, color: Color(0xFF0EA5E9), size: 20),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '일정 시간이 되면 챗봇이 음성으로 알려드립니다.',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF0369A1)),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 24),
-              ],
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 }
 
-// ===== 일정 카드 =====
 class _SchedCard extends StatelessWidget {
   final Map sched;
   final Function(String) onStatusChange;
@@ -212,7 +246,6 @@ class _SchedCard extends StatelessWidget {
               ],
             ),
           ),
-          // 상태 버튼
           if (!isDone && !isCancelled)
             Row(
               children: [
@@ -250,13 +283,11 @@ class _SchedCard extends StatelessWidget {
                 color: isDone ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text(
-                status,
-                style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600,
-                  color: isDone ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                ),
-              ),
+              child: Text(status,
+                  style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600,
+                    color: isDone ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                  )),
             ),
         ],
       ),
@@ -264,7 +295,6 @@ class _SchedCard extends StatelessWidget {
   }
 }
 
-// ===== 일정 추가 카드 =====
 class _AddSchedCard extends StatefulWidget {
   final Function(String title, String time) onAdd;
   const _AddSchedCard({required this.onAdd});
@@ -379,7 +409,6 @@ class _AddSchedCardState extends State<_AddSchedCard> {
   }
 }
 
-// ===== 통계 뱃지 =====
 class _StatBadge extends StatelessWidget {
   final String label;
   final int count;

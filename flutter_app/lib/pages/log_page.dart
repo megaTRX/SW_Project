@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
-import '../widgets/log_card.dart';
+import '../data/api_service.dart';
 
 class LogPage extends StatefulWidget {
   const LogPage({super.key});
@@ -13,12 +12,34 @@ class _LogPageState extends State<LogPage> {
   String _selectedCategory = '전체';
   final _searchController = TextEditingController();
   String _keyword = '';
+  List<Map> _logs = [];
+  bool _isLoading = true;
 
   final List<String> _categories = ['전체', '생활정보', '복약', '일정', '긴급'];
 
   @override
+  void initState() {
+    super.initState();
+    _loadLogs();
+  }
+
+  Future<void> _loadLogs() async {
+    setState(() => _isLoading = true);
+    final data = await ApiService.getChatLogs();
+    setState(() {
+      _logs = data.isEmpty ? [
+        {"time": "09:10", "user": "오늘 날씨 알려줘", "bot": "오늘은 맑고 따뜻합니다.", "type": "생활정보"},
+        {"time": "10:00", "user": "오늘 약 먹을 시간 알려줘", "bot": "오전 10시에 혈압약 드실 시간입니다.", "type": "복약"},
+        {"time": "13:00", "user": "내 일정 알려줘", "bot": "오후 3시에 복지관 방문 일정이 있습니다.", "type": "일정"},
+        {"time": "15:30", "user": "살려줘", "bot": "긴급 호출이 접수되었습니다.", "type": "긴급"},
+      ] : data;
+      _isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final filtered = mockLogs.where((l) {
+    final filtered = _logs.where((l) {
       final matchCategory = _selectedCategory == '전체' || l["type"] == _selectedCategory;
       final matchKeyword = _keyword.isEmpty ||
           l["user"].toString().contains(_keyword) ||
@@ -26,9 +47,8 @@ class _LogPageState extends State<LogPage> {
       return matchCategory && matchKeyword;
     }).toList();
 
-    // 카테고리별 통계
     final Map<String, int> stats = {};
-    for (final l in mockLogs) {
+    for (final l in _logs) {
       stats[l["type"] as String] = (stats[l["type"] as String] ?? 0) + 1;
     }
 
@@ -37,7 +57,6 @@ class _LogPageState extends State<LogPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // 상단 헤더
           Container(
             width: double.infinity,
@@ -55,12 +74,10 @@ class _LogPageState extends State<LogPage> {
                 const Text('대화 내용',
                     style: TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 6),
-                Text('총 ${mockLogs.length}개의 대화',
+                Text('총 ${_logs.length}개의 대화',
                     style: const TextStyle(
                         color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 16),
-
-                // 통계 뱃지
                 Row(
                   children: [
                     _StatChip(label: '생활정보', count: stats['생활정보'] ?? 0, color: const Color(0xFF3B82F6)),
@@ -83,7 +100,6 @@ class _LogPageState extends State<LogPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 // 검색창
                 TextField(
                   controller: _searchController,
@@ -138,14 +154,11 @@ class _LogPageState extends State<LogPage> {
                               color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
                             ),
                           ),
-                          child: Text(
-                            cat,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isSelected ? Colors.white : const Color(0xFF64748B),
-                            ),
-                          ),
+                          child: Text(cat,
+                              style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600,
+                                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                              )),
                         ),
                       );
                     }).toList(),
@@ -154,25 +167,26 @@ class _LogPageState extends State<LogPage> {
 
                 const SizedBox(height: 16),
 
-                // 결과 수
-                Text(
-                  '${filtered.length}개의 대화',
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                ),
+                Text('${filtered.length}개의 대화',
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
 
                 const SizedBox(height: 10),
 
-                // 대화 목록
-                if (filtered.isEmpty)
-                  Center(
+                if (_isLoading)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+                  ))
+                else if (filtered.isEmpty)
+                  const Center(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 60),
+                      padding: EdgeInsets.symmetric(vertical: 60),
                       child: Column(
                         children: [
-                          const Icon(Icons.chat_bubble_outline_rounded,
+                          Icon(Icons.chat_bubble_outline_rounded,
                               color: Color(0xFFCBD5E1), size: 48),
-                          const SizedBox(height: 12),
-                          const Text('검색 결과가 없어요',
+                          SizedBox(height: 12),
+                          Text('검색 결과가 없어요',
                               style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15)),
                         ],
                       ),
@@ -191,7 +205,6 @@ class _LogPageState extends State<LogPage> {
   }
 }
 
-// ===== 대화 버블 카드 =====
 class _ChatBubbleCard extends StatelessWidget {
   final Map log;
   const _ChatBubbleCard({required this.log});
@@ -228,17 +241,13 @@ class _ChatBubbleCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 헤더
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                  decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
                   child: Text(log["type"] as String,
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c)),
                 ),
@@ -250,10 +259,7 @@ class _ChatBubbleCard extends StatelessWidget {
               ],
             ),
           ),
-
           const Divider(height: 1, color: Color(0xFFF1F5F9)),
-
-          // 사용자 말
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
             child: Row(
@@ -262,9 +268,8 @@ class _ChatBubbleCard extends StatelessWidget {
                 Container(
                   width: 28, height: 28,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(14)),
                   child: const Center(child: Text('👴', style: TextStyle(fontSize: 14))),
                 ),
                 const SizedBox(width: 10),
@@ -286,8 +291,6 @@ class _ChatBubbleCard extends StatelessWidget {
               ],
             ),
           ),
-
-          // 챗봇 답변
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
             child: Row(
@@ -296,9 +299,8 @@ class _ChatBubbleCard extends StatelessWidget {
                 Container(
                   width: 28, height: 28,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(14)),
                   child: const Center(child: Text('🤖', style: TextStyle(fontSize: 14))),
                 ),
                 const SizedBox(width: 10),
@@ -306,7 +308,9 @@ class _ChatBubbleCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isEmergency ? const Color(0xFFFEF2F2) : const Color(0xFFEFF6FF),
+                      color: isEmergency
+                          ? const Color(0xFFFEF2F2)
+                          : const Color(0xFFEFF6FF),
                       borderRadius: const BorderRadius.only(
                         topRight: Radius.circular(12),
                         bottomLeft: Radius.circular(12),
@@ -316,7 +320,9 @@ class _ChatBubbleCard extends StatelessWidget {
                     child: Text(log["bot"] as String,
                         style: TextStyle(
                             fontSize: 14,
-                            color: isEmergency ? const Color(0xFFDC2626) : const Color(0xFF1E293B))),
+                            color: isEmergency
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFF1E293B))),
                   ),
                 ),
               ],
@@ -328,7 +334,6 @@ class _ChatBubbleCard extends StatelessWidget {
   }
 }
 
-// ===== 통계 칩 =====
 class _StatChip extends StatelessWidget {
   final String label;
   final int count;
@@ -346,11 +351,14 @@ class _StatChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(width: 6, height: 6,
-              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+          Container(
+              width: 6, height: 6,
+              decoration: BoxDecoration(
+                  color: color, borderRadius: BorderRadius.circular(3))),
           const SizedBox(width: 5),
           Text('$label $count',
-              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
         ],
       ),
     );
