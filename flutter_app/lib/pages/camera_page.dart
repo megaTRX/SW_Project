@@ -27,10 +27,11 @@ class _CameraPageState extends State<CameraPage> {
       _alerts = data.where((a) => a["type"] == "비활동").toList();
       _isLoading = false;
 
-      // 마지막 활동 시간 계산
+      // 마지막 활동 시간 계산 (가장 최신 알림 기준)
       if (data.isNotEmpty) {
         try {
-          _lastMotionTime = DateTime.parse(data.first["time"] as String);
+          final timeStr = data.last["time"] as String;
+          _lastMotionTime = DateTime.parse(timeStr.replaceAll(' ', 'T'));
         } catch (_) {}
       }
     });
@@ -191,7 +192,7 @@ class _CameraPageState extends State<CameraPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                // 새로고침 버튼
+                // 새로고침 버튼 (로딩 중엔 스피너로 변환)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -199,16 +200,25 @@ class _CameraPageState extends State<CameraPage> {
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
                             color: Color(0xFF0F172A))),
                     GestureDetector(
-                      onTap: _loadAlerts,
-                      child: const Row(
-                        children: [
-                          Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF6366F1)),
-                          SizedBox(width: 4),
-                          Text('새로고침',
-                              style: TextStyle(fontSize: 13, color: Color(0xFF6366F1),
-                                  fontWeight: FontWeight.w500)),
-                        ],
-                      ),
+                      onTap: _isLoading ? null : _loadAlerts,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF6366F1),
+                              ),
+                            )
+                          : Row(
+                              children: const [
+                                Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF6366F1)),
+                                SizedBox(width: 4),
+                                Text('새로고침',
+                                    style: TextStyle(fontSize: 13, color: Color(0xFF6366F1),
+                                        fontWeight: FontWeight.w500)),
+                              ],
+                            ),
                     ),
                   ],
                 ),
@@ -303,9 +313,34 @@ class _CameraPageState extends State<CameraPage> {
                     const Text('최근 감지 기록',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
                             color: Color(0xFF0F172A))),
-                    const Text('전체 보기',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF6366F1),
-                            fontWeight: FontWeight.w500)),
+                    GestureDetector(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) => DraggableScrollableSheet(
+                            expand: false,
+                            builder: (_, controller) => ListView(
+                              controller: controller,
+                              padding: const EdgeInsets.all(16),
+                              children: [
+                                const Text('전체 감지 기록',
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 12),
+                                ..._alerts.map((alert) => ListTile(
+                                  title: Text(alert["content"] as String),
+                                  subtitle: Text(alert["time"] as String),
+                                  trailing: Text(alert["status"] as String),
+                                )),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text('전체 보기',
+                          style: TextStyle(fontSize: 13, color: Color(0xFF6366F1),
+                              fontWeight: FontWeight.w500)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -474,11 +509,12 @@ class _AIRow extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _AIRow(
-      {required this.label,
-      required this.value,
-      required this.icon,
-      required this.color});
+  const _AIRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
