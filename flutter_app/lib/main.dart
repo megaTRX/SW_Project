@@ -1,3 +1,4 @@
+import 'screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/med_page.dart';
@@ -22,7 +23,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6366F1)),
         useMaterial3: true,
       ),
-      home: const LoginPage(),
+      home: const SplashScreen(),
     );
   }
 }
