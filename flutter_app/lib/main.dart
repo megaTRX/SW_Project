@@ -6,8 +6,10 @@ import 'pages/log_page.dart';
 import 'pages/camera_page.dart';
 import 'pages/settings_page.dart';
 import 'screens/splash_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: ".env"); 
   runApp(const MyApp());
 }
 

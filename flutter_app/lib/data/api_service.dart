@@ -1,5 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+// API 호출부
+final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? "";
+final String url = "https://api.openweathermap.org/data/2.5/weather?q=Seoul&appid=$apiKey&units=metric";
 
 const String baseUrl = 'http://127.0.0.1:8000';
 
@@ -66,7 +71,7 @@ class ApiService {
       return false;
     }
   }
-  
+
   static Future<bool> uncompleteSchedule(int id) async {
   try {
     final res = await http.patch(

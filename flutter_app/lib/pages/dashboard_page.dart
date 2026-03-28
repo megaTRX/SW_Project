@@ -5,6 +5,7 @@ import '../data/api_service.dart';
 import '../widgets/banner_widget.dart';
 import '../models/log_item.dart';
 import '../widgets/log_card.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class DashboardPage extends StatefulWidget {
   final Function(int) onTabChange;
@@ -26,7 +27,8 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Map> _scheds = [];
 
   static const String _baseUrl = 'http://localhost:8000';
-  static const String _weatherApiKey = '693d75b2a15c1c6158bf4620d05f73e6';
+  String get _weatherApiKey => dotenv.env['WEATHER_API_KEY'] ?? '';
+
 
   @override
   void initState() {
