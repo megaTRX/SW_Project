@@ -19,21 +19,26 @@ class _MedPageState extends State<MedPage> {
   }
 
   Future<void> _loadMeds() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
-    final data = await ApiService.getMedications();
-    setState(() {
-      _meds = data.isEmpty ? [
-        {"name": "혈압약", "time": "10:00", "taken": false},
-        {"name": "당뇨약", "time": "18:00", "taken": false},
-        {"name": "비타민", "time": "20:00", "taken": true},
-      ] : data;
-      _isLoading = false;
-    });
+    try {
+      final data = await ApiService.getMedications();
+      if (mounted) {
+        setState(() {
+          _meds = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final taken = _meds.where((m) => m["taken"] == true).length;
+    final takenList = _meds.where((m) => m["taken"] == true || m["taken"] == 1).toList();
+    final remainingList = _meds.where((m) => m["taken"] == false || m["taken"] == 0).toList();
+    final taken = takenList.length;
     final total = _meds.length;
     final progress = total > 0 ? taken / total : 0.0;
 
@@ -42,7 +47,6 @@ class _MedPageState extends State<MedPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 상단 헤더
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -56,12 +60,10 @@ class _MedPageState extends State<MedPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('오늘의 복약',
-                    style: TextStyle(color: Colors.white70, fontSize: 13)),
+                const Text('오늘의 복약', style: TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 6),
                 Text('$taken / $total 완료',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 16),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
@@ -80,64 +82,52 @@ class _MedPageState extends State<MedPage> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-
           if (_isLoading)
-            const Center(child: Padding(
-              padding: EdgeInsets.all(40),
-              child: CircularProgressIndicator(color: Color(0xFF6366F1)),
-            ))
+            const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: Color(0xFF6366F1))))
           else
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
-                  // 복약 미완료
-                  if (_meds.any((m) => m["taken"] == false)) ...[
-                    const Text('⏰ 복약 전',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                  if (remainingList.isNotEmpty) ...[
+                    const Text('⏰ 복약 전', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                     const SizedBox(height: 10),
-                    ..._meds.where((m) => m["taken"] == false).map((med) {
-                      final i = _meds.indexOf(med);
-                      return _MedCard(
-                        med: med,
-                        onTaken: () async {
-                          if (med["id"] != null) {
-                            await ApiService.takeMedication(med["id"]);
-                          }
-                          setState(() => _meds[i]["taken"] = true);
-                        },
-                      );
-                    }),
+                    ...remainingList.map((med) => _MedCard(
+                      med: med,
+                      isTaken: false,
+                      onTap: () async {
+                        if (med["id"] != null) {
+                          await ApiService.takeMedication(med["id"]);
+                          await _loadMeds();
+                        }
+                      },
+                    )),
                     const SizedBox(height: 20),
                   ],
-
-                  // 복약 완료
-                  if (_meds.any((m) => m["taken"] == true)) ...[
-                    const Text('✅ 복약 완료',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                  if (takenList.isNotEmpty) ...[
+                    const Text('✅ 복약 완료', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                     const SizedBox(height: 10),
-                    ..._meds.where((m) => m["taken"] == true).map((med) {
-                      return _MedCard(med: med, onTaken: null);
-                    }),
+                    ...takenList.map((med) => _MedCard(
+                      med: med,
+                      isTaken: true,
+                      onTap: () async {
+                        if (med["id"] != null) {
+                          await ApiService.untakeMedication(med["id"]);
+                          await _loadMeds();
+                        }
+                      },
+                    )),
                     const SizedBox(height: 20),
                   ],
-
-                  // 복약 추가
-                  const Text('💊 복약 추가',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                  const Text('💊 복약 추가', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                   const SizedBox(height: 10),
                   _AddMedCard(onAdd: (name, time) async {
                     await ApiService.addMedication(name, time);
-                    _loadMeds();
+                    await _loadMeds();
                   }),
-
                   const SizedBox(height: 20),
-
-                  // 안내
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -150,15 +140,12 @@ class _MedPageState extends State<MedPage> {
                         Icon(Icons.info_rounded, color: Color(0xFF6366F1), size: 20),
                         SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            '복약 시간이 되면 챗봇이 음성으로 알려드립니다.',
-                            style: TextStyle(fontSize: 13, color: Color(0xFF3730A3)),
-                          ),
+                          child: Text('복약 시간이 되면 챗봇이 음성으로 알려드립니다.',
+                              style: TextStyle(fontSize: 13, color: Color(0xFF3730A3))),
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
                 ],
               ),
@@ -169,17 +156,16 @@ class _MedPageState extends State<MedPage> {
   }
 }
 
-// ===== 복약 카드 =====
 class _MedCard extends StatelessWidget {
   final Map med;
-  final VoidCallback? onTaken;
+  final bool isTaken;
+  final VoidCallback onTap;
 
-  const _MedCard({required this.med, required this.onTaken});
+  const _MedCard({required this.med, required this.isTaken, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final taken = med["taken"] as bool;
-    final color = taken ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    final color = isTaken ? const Color(0xFF10B981) : const Color(0xFFEF4444);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -187,91 +173,62 @@ class _MedCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: taken ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)
-        ],
+        border: Border.all(color: isTaken ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
       ),
       child: Row(
         children: [
           Container(
             width: 48, height: 48,
             decoration: BoxDecoration(
-              color: taken ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+              color: isTaken ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              taken ? Icons.check_rounded : Icons.medication_rounded,
-              color: color, size: 26,
-            ),
+            child: Icon(isTaken ? Icons.check_rounded : Icons.medication_rounded, color: color, size: 26),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(med["name"] as String,
+                Text(med["name"] ?? "약 이름 없음",
                     style: TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w600,
-                      color: taken
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF1E293B),
-                      decoration:
-                          taken ? TextDecoration.lineThrough : null,
+                      color: isTaken ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
+                      decoration: isTaken ? TextDecoration.lineThrough : null,
                     )),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time_rounded,
-                        size: 13, color: Color(0xFF94A3B8)),
-                    const SizedBox(width: 4),
-                    Text(med["time"] as String,
-                        style: const TextStyle(
-                            fontSize: 13, color: Color(0xFF94A3B8))),
-                  ],
-                ),
+                Row(children: [
+                  const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF94A3B8)),
+                  const SizedBox(width: 4),
+                  Text(med["time"] ?? "시간 미설정", style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                ]),
               ],
             ),
           ),
-          if (!taken && onTaken != null)
-            GestureDetector(
-              onTap: onTaken,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text('복용 완료',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-              ),
-            )
-          else
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
+                color: isTaken ? const Color(0xFFF0FDF4) : const Color(0xFF6366F1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text('완료 ✓',
-                  style: TextStyle(
-                      color: Color(0xFF10B981),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
+              child: Text(
+                isTaken ? '완료' : '복용 완료',
+                style: TextStyle(
+                    color: isTaken ? const Color(0xFF10B981) : Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600),
+              ),
             ),
+          ),
         ],
       ),
     );
   }
 }
 
-// ===== 복약 추가 카드 =====
 class _AddMedCard extends StatefulWidget {
   final Function(String name, String time) onAdd;
   const _AddMedCard({required this.onAdd});
@@ -307,23 +264,13 @@ class _AddMedCardState extends State<_AddMedCard> {
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.add_rounded,
-                        color: Color(0xFF6366F1), size: 22),
+                    child: const Icon(Icons.add_rounded, color: Color(0xFF6366F1), size: 22),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
-                    child: Text('새 복약 추가',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF1E293B))),
+                    child: Text('새 복약 추가', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B))),
                   ),
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    color: const Color(0xFF94A3B8),
-                  ),
+                  Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: const Color(0xFF94A3B8)),
                 ],
               ),
             ),
@@ -339,15 +286,8 @@ class _AddMedCardState extends State<_AddMedCard> {
                     controller: _nameController,
                     decoration: InputDecoration(
                       labelText: '약 이름',
-                      prefixIcon: const Icon(Icons.medication_rounded,
-                          color: Color(0xFF6366F1)),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF6366F1), width: 2),
-                      ),
+                      prefixIcon: const Icon(Icons.medication_rounded, color: Color(0xFF6366F1)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -355,15 +295,8 @@ class _AddMedCardState extends State<_AddMedCard> {
                     controller: _timeController,
                     decoration: InputDecoration(
                       labelText: '복용 시간 (예: 10:00)',
-                      prefixIcon: const Icon(Icons.access_time_rounded,
-                          color: Color(0xFF6366F1)),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF6366F1), width: 2),
-                      ),
+                      prefixIcon: const Icon(Icons.access_time_rounded, color: Color(0xFF6366F1)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -372,10 +305,8 @@ class _AddMedCardState extends State<_AddMedCard> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        if (_nameController.text.isNotEmpty &&
-                            _timeController.text.isNotEmpty) {
-                          widget.onAdd(
-                              _nameController.text, _timeController.text);
+                        if (_nameController.text.isNotEmpty && _timeController.text.isNotEmpty) {
+                          widget.onAdd(_nameController.text, _timeController.text);
                           _nameController.clear();
                           _timeController.clear();
                           setState(() => _expanded = false);
@@ -384,13 +315,9 @@ class _AddMedCardState extends State<_AddMedCard> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: const Text('추가하기',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600)),
+                      child: const Text('추가하기', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],

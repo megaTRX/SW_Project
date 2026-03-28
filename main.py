@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from database import engine, Base
-from routers import chat, medicine, schedule, alert
+from routers import chat, medicine, schedule, alert, auth
 from scheduler import start_scheduler
 
 app = FastAPI(title="노인케어 챗봇 백엔드")
@@ -19,6 +19,7 @@ async def shutdown():
     scheduler.shutdown()
 
 # 라우터 연결
+app.include_router(auth.router, prefix="/auth", tags=["인증"])
 app.include_router(chat.router, prefix="/chat", tags=["대화 로그"])
 app.include_router(medicine.router, prefix="/medicine", tags=["복약 관리"])
 app.include_router(schedule.router, prefix="/schedule", tags=["일정 관리"])

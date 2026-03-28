@@ -22,19 +22,26 @@ class _SchedulePageState extends State<SchedulePage> {
     setState(() => _isLoading = true);
     final data = await ApiService.getSchedules();
     setState(() {
-      _scheds = data.isEmpty ? [
-        {"title": "복지관 방문", "time": "15:00", "status": "예정"},
-        {"title": "딸과 통화", "time": "19:00", "status": "예정"},
-        {"title": "병원 예약", "time": "2026-03-12 11:00", "status": "예정"},
-      ] : data;
+      _scheds = data;
       _isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final today = _scheds.where((s) => !s["time"].toString().contains('-')).toList();
-    final upcoming = _scheds.where((s) => s["time"].toString().contains('-')).toList();
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}';
+
+    final today = _scheds.where((s) {
+      final t = s["time"].toString();
+      return t.startsWith(todayStr) || (!t.contains('-') && !t.contains('202'));
+    }).toList();
+
+    final upcoming = _scheds.where((s) {
+      final t = s["time"].toString();
+      return t.contains('-') && !t.startsWith(todayStr);
+    }).toList();
+
     final done = _scheds.where((s) => s["status"] == "완료").length;
 
     return SingleChildScrollView(
@@ -42,7 +49,6 @@ class _SchedulePageState extends State<SchedulePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 상단 헤더
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -56,19 +62,15 @@ class _SchedulePageState extends State<SchedulePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
+                Text('${now.year}년 ${now.month}월 ${now.day}일',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 6),
-                Text(
-                  '오늘 일정 ${today.length}개',
-                  style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800),
-                ),
+                Text('오늘 일정 ${today.length}개',
+                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    _StatBadge(label: '예정', count: today.where((s) => s["status"] == "예정").length, color: Colors.white.withOpacity(0.2)),
+                    _StatBadge(label: '예정', count: today.where((s) => s["status"] == "" || s["status"] == "예정").length, color: Colors.white.withOpacity(0.2)),
                     const SizedBox(width: 8),
                     _StatBadge(label: '완료', count: done, color: Colors.white.withOpacity(0.2)),
                     const SizedBox(width: 8),
@@ -78,73 +80,56 @@ class _SchedulePageState extends State<SchedulePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-
           if (_isLoading)
-            const Center(child: Padding(
-              padding: EdgeInsets.all(40),
-              child: CircularProgressIndicator(color: Color(0xFF6366F1)),
-            ))
+            const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: Color(0xFF6366F1))))
           else
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
-                  // 오늘 일정
                   if (today.isNotEmpty) ...[
-                    const Text('📅 오늘 일정',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                    const Text('📅 오늘 일정', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                     const SizedBox(height: 10),
-                    ...today.map((s) {
-                      final i = _scheds.indexOf(s);
-                      return _SchedCard(
-                        sched: s,
-                        onStatusChange: (status) async {
-                          if (status == "완료" && s["id"] != null) {
-                            await ApiService.completeSchedule(s["id"]);
-                          }
-                          setState(() => _scheds[i]["status"] = status);
-                        },
-                      );
-                    }),
+                    ...today.map((s) => _SchedCard(
+                      sched: s,
+                      onStatusChange: (status) async {
+                        final i = _scheds.indexOf(s);
+                        if (status == "완료" && s["id"] != null) {
+                          await ApiService.completeSchedule(s["id"]);
+                        } else if (status == "" && s["id"] != null) {
+                          await ApiService.uncompleteSchedule(s["id"]);
+                        }
+                        setState(() => _scheds[i]["status"] = status);
+                      },
+                    )),
                     const SizedBox(height: 20),
                   ],
-
-                  // 예정 일정
                   if (upcoming.isNotEmpty) ...[
-                    const Text('🗓 예정 일정',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                    const Text('🗓 예정 일정', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                     const SizedBox(height: 10),
-                    ...upcoming.map((s) {
-                      final i = _scheds.indexOf(s);
-                      return _SchedCard(
-                        sched: s,
-                        onStatusChange: (status) async {
-                          if (status == "완료" && s["id"] != null) {
-                            await ApiService.completeSchedule(s["id"]);
-                          }
-                          setState(() => _scheds[i]["status"] = status);
-                        },
-                      );
-                    }),
+                    ...upcoming.map((s) => _SchedCard(
+                      sched: s,
+                      onStatusChange: (status) async {
+                        final i = _scheds.indexOf(s);
+                        if (status == "완료" && s["id"] != null) {
+                          await ApiService.completeSchedule(s["id"]);
+                        } else if (status == "" && s["id"] != null) {
+                          await ApiService.uncompleteSchedule(s["id"]);
+                        }
+                        setState(() => _scheds[i]["status"] = status);
+                      },
+                    )),
                     const SizedBox(height: 20),
                   ],
-
-                  // 일정 추가
-                  const Text('➕ 일정 추가',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                  const Text('➕ 일정 추가', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                   const SizedBox(height: 10),
                   _AddSchedCard(onAdd: (title, time) async {
                     await ApiService.addSchedule(title, time);
                     _loadScheds();
                   }),
-
                   const SizedBox(height: 20),
-
-                  // 안내
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -156,16 +141,10 @@ class _SchedulePageState extends State<SchedulePage> {
                       children: [
                         Icon(Icons.info_rounded, color: Color(0xFF0EA5E9), size: 20),
                         SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '일정 시간이 되면 챗봇이 음성으로 알려드립니다.',
-                            style: TextStyle(fontSize: 13, color: Color(0xFF0369A1)),
-                          ),
-                        ),
+                        Expanded(child: Text('일정 시간이 되면 챗봇이 음성으로 알려드립니다.', style: TextStyle(fontSize: 13, color: Color(0xFF0369A1)))),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
                 ],
               ),
@@ -226,69 +205,59 @@ class _SchedCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  sched["title"] as String,
-                  style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w600,
-                    color: isCancelled ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
-                    decoration: isCancelled ? TextDecoration.lineThrough : null,
-                  ),
-                ),
+                Text(sched["title"] as String,
+                    style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600,
+                      color: isCancelled ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
+                      decoration: isCancelled ? TextDecoration.lineThrough : null,
+                    )),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF94A3B8)),
-                    const SizedBox(width: 4),
-                    Text(sched["time"] as String,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
-                  ],
-                ),
+                Row(children: [
+                  const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF94A3B8)),
+                  const SizedBox(width: 4),
+                  Text(sched["time"] as String, style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                ]),
               ],
             ),
           ),
-          if (!isDone && !isCancelled)
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => onStatusChange("완료"),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text('완료',
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ),
+          if (!isCancelled)
+            GestureDetector(
+              onTap: () => onStatusChange(isDone ? "" : "완료"),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isDone ? const Color(0xFFF0FDF4) : const Color(0xFF6366F1),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: () => onStatusChange("취소"),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text('취소',
-                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ],
-            )
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: isDone ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(status,
+                child: Text(
+                  isDone ? '완료 ✓' : '완료',
                   style: TextStyle(
+                    color: isDone ? const Color(0xFF10B981) : Colors.white,
                     fontSize: 12, fontWeight: FontWeight.w600,
-                    color: isDone ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                  )),
+                  ),
+                ),
+              ),
             ),
+          if (!isDone) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => onStatusChange(isCancelled ? "" : "취소"),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isCancelled ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  isCancelled ? '취소 ✓' : '취소',
+                  style: TextStyle(
+                    color: isCancelled ? const Color(0xFF6366F1) : const Color(0xFF94A3B8),
+                    fontSize: 12, fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -307,6 +276,21 @@ class _AddSchedCardState extends State<_AddSchedCard> {
   final _titleController = TextEditingController();
   final _timeController = TextEditingController();
   bool _expanded = false;
+  bool _isFuture = false;
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+
+  String _formatDateTime() {
+    if (_isFuture && _selectedDate != null && _selectedTime != null) {
+      final y = _selectedDate!.year;
+      final mo = _selectedDate!.month.toString().padLeft(2, '0');
+      final d = _selectedDate!.day.toString().padLeft(2, '0');
+      final h = _selectedTime!.hour.toString().padLeft(2, '0');
+      final mi = _selectedTime!.minute.toString().padLeft(2, '0');
+      return '$y-$mo-$d $h:$mi';
+    }
+    return _timeController.text;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -326,21 +310,12 @@ class _AddSchedCardState extends State<_AddSchedCard> {
                 children: [
                   Container(
                     width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.add_rounded, color: Color(0xFF6366F1), size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text('새 일정 추가',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B))),
-                  ),
-                  Icon(
-                    _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                    color: const Color(0xFF94A3B8),
-                  ),
+                  const Expanded(child: Text('새 일정 추가', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)))),
+                  Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: const Color(0xFF94A3B8)),
                 ],
               ),
             ),
@@ -349,6 +324,7 @@ class _AddSchedCardState extends State<_AddSchedCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Divider(color: Color(0xFFE2E8F0)),
                   const SizedBox(height: 12),
@@ -358,46 +334,125 @@ class _AddSchedCardState extends State<_AddSchedCard> {
                       labelText: '일정명',
                       prefixIcon: const Icon(Icons.event_rounded, color: Color(0xFF6366F1)),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
-                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _timeController,
-                    decoration: InputDecoration(
-                      labelText: '시간 (예: 15:00)',
-                      prefixIcon: const Icon(Icons.access_time_rounded, color: Color(0xFF6366F1)),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('예정 일정', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                      const SizedBox(width: 8),
+                      Switch(
+                        value: _isFuture,
+                        onChanged: (v) => setState(() {
+                          _isFuture = v;
+                          _selectedDate = null;
+                          _selectedTime = null;
+                          _timeController.clear();
+                        }),
+                        activeColor: const Color(0xFF6366F1),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (_isFuture) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () async {
+                              final d = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2030),
+                              );
+                              if (d != null) setState(() => _selectedDate = d);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF6366F1)),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _selectedDate == null ? '날짜 선택' : '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2,'0')}-${_selectedDate!.day.toString().padLeft(2,'0')}',
+                                    style: TextStyle(fontSize: 13, color: _selectedDate == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () async {
+                              final t = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+                              if (t != null) setState(() => _selectedTime = t);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF6366F1)),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _selectedTime == null ? '시간 선택' : '${_selectedTime!.hour.toString().padLeft(2,'0')}:${_selectedTime!.minute.toString().padLeft(2,'0')}',
+                                    style: TextStyle(fontSize: 13, color: _selectedTime == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    TextField(
+                      controller: _timeController,
+                      decoration: InputDecoration(
+                        labelText: '시간 (예: 15:00)',
+                        prefixIcon: const Icon(Icons.access_time_rounded, color: Color(0xFF6366F1)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        if (_titleController.text.isNotEmpty && _timeController.text.isNotEmpty) {
-                          widget.onAdd(_titleController.text, _timeController.text);
+                        final time = _formatDateTime();
+                        final valid = _isFuture
+                            ? (_selectedDate != null && _selectedTime != null && _titleController.text.isNotEmpty)
+                            : (_titleController.text.isNotEmpty && _timeController.text.isNotEmpty);
+                        if (valid) {
+                          widget.onAdd(_titleController.text, time);
                           _titleController.clear();
                           _timeController.clear();
-                          setState(() => _expanded = false);
+                          setState(() {
+                            _expanded = false;
+                            _isFuture = false;
+                            _selectedDate = null;
+                            _selectedTime = null;
+                          });
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
                       ),
-                      child: const Text('추가하기',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      child: const Text('추가하기', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
@@ -420,12 +475,8 @@ class _StatBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text('$label $count',
-          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
+      child: Text('$label $count', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }
 }

@@ -1,4 +1,3 @@
-import 'screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/med_page.dart';
@@ -6,6 +5,7 @@ import 'pages/schedule_page.dart';
 import 'pages/log_page.dart';
 import 'pages/camera_page.dart';
 import 'pages/settings_page.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ===== 로그인 =====
+// ===== 로그인 페이지 =====
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -77,11 +77,7 @@ class _LoginPageState extends State<LoginPage> {
                     shaderCallback: (bounds) => const LinearGradient(
                       colors: [Color(0xFF4FC3F7), Color(0xFF6366F1)],
                     ).createShader(bounds),
-                    child: const Icon(
-                      Icons.health_and_safety_rounded,
-                      size: 64,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.health_and_safety_rounded, size: 64, color: Colors.white),
                   ),
                   const SizedBox(height: 6),
                   ShaderMask(
@@ -91,77 +87,35 @@ class _LoginPageState extends State<LoginPage> {
                     child: const Text(
                       'OASIS',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 2,
-                      ),
+                      style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'CareBot Admin',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6366F1),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    '노인 케어 챗봇 관리자 시스템',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                   ),
                   const SizedBox(height: 48),
-
-                  const Text('아이디',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+                  const Text('아이디', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _idController,
                     decoration: InputDecoration(
                       hintText: 'admin',
-                      hintStyle: const TextStyle(color: Color(0xFFCBD5E1)),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2)),
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  const Text('비밀번호',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+                  const Text('비밀번호', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _pwController,
                     obscureText: true,
                     decoration: InputDecoration(
                       hintText: '••••••••',
-                      hintStyle: const TextStyle(color: Color(0xFFCBD5E1)),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2)),
                     ),
-                    onSubmitted: (_) => _login(),
                   ),
-                  const SizedBox(height: 8),
-
-                  if (_errorMsg.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(_errorMsg,
-                          style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13)),
-                    ),
-
-                  const SizedBox(height: 16),
-
+                  const SizedBox(height: 24),
                   SizedBox(
                     height: 52,
                     child: ElevatedButton(
@@ -170,20 +124,10 @@ class _LoginPageState extends State<LoginPage> {
                         backgroundColor: const Color(0xFF6366F1),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
                       ),
-                      child: _isLoading
-                          ? const SizedBox(width: 20, height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('로그인',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('로그인'),
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-                  const Text('테스트 계정: admin / 1234',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Color(0xFFCBD5E1))),
                 ],
               ),
             ),
@@ -194,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// ===== 메인 (하단 탭) =====
+// ===== 메인 페이지 (탭 관리) =====
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
@@ -205,17 +149,25 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
-  List<Widget> get _pages => [
-    DashboardPage(onTabChange: (i) => setState(() => _selectedIndex = i)),
-    const MedPage(),
-    const SchedulePage(),
-    const LogPage(),
-    const CameraPage(),
-    const SettingsPage(),
-  ];
+  // 탭 변경 함수 (DashboardPage에서 호출 가능하도록)
+  void _onTabChange(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    // 페이지 리스트를 build 안에 두어 _onTabChange를 전달할 수 있게 합니다.
+    final List<Widget> pages = [
+      DashboardPage(onTabChange: _onTabChange), // 이 부분이 핵심!
+      const MedPage(),
+      const SchedulePage(),
+      const LogPage(),
+      const CameraPage(),
+      const SettingsPage(),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -226,37 +178,22 @@ class _MainPageState extends State<MainPage> {
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Color(0xFF4FC3F7), Color(0xFF6366F1)],
           ).createShader(bounds),
-          child: const Text(
-            'OASIS',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 22,
-              color: Colors.white,
-              letterSpacing: 2,
-            ),
-          ),
+          child: const Text('OASIS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.white)),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Color(0xFF94A3B8)),
-            onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginPage()),
-            ),
+            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage())),
           )
         ],
       ),
-      body: _pages[_selectedIndex],
+      body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF6366F1),
         unselectedItemColor: const Color(0xFF94A3B8),
-        backgroundColor: Colors.white,
-        elevation: 8,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: '대시보드'),
           BottomNavigationBarItem(icon: Icon(Icons.medication_rounded), label: '복약'),

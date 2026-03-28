@@ -32,3 +32,23 @@ async def delete_medicine(medicine_id: int, db: AsyncSession = Depends(get_db)):
         await db.delete(medicine)
         await db.commit()
     return {"message": "삭제 완료"}
+
+# 복약 완료 처리
+@router.patch("/{medicine_id}/take")
+async def take_medicine(medicine_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Medicine).where(Medicine.id == medicine_id))
+    medicine = result.scalar_one_or_none()
+    if medicine:
+        medicine.taken = True
+        await db.commit()
+    return {"message": "복약 완료"}
+
+# 복약 취소 (완료 → 미완료)
+@router.patch("/{medicine_id}/untake")
+async def untake_medicine(medicine_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Medicine).where(Medicine.id == medicine_id))
+    medicine = result.scalar_one_or_none()
+    if medicine:
+        medicine.taken = False
+        await db.commit()
+    return {"message": "복약 취소"}

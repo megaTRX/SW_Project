@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,9 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   static const _purple = Color(0xFF6C63E0);
   static const _bg     = Color(0xFFEEF2F7);
 
-  @override
-  void dispose() { _idCtrl.dispose(); _pwCtrl.dispose(); super.dispose(); }
-
   void _onLogin() async {
     final id = _idCtrl.text.trim();
     final pw = _pwCtrl.text.trim();
@@ -27,15 +26,24 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    setState(() => _loading = false);
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainPage()),
-      );
+    try {
+      final res = await http.post(
+        Uri.parse('http://localhost:8000/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': id, 'password': pw}),
+      ).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('아이디 또는 비밀번호가 틀렸어요'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('서버에 연결할 수 없어요'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
-
+  
   void _onSocial(String provider) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('$provider 로그인 준비 중'),

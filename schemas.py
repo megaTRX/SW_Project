@@ -25,6 +25,7 @@ class MedicineCreate(BaseModel):
 
 class MedicineResponse(MedicineCreate):
     id: int
+    taken: bool = False  
 
     class Config:
         from_attributes = True

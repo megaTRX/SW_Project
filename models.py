@@ -22,6 +22,7 @@ class Medicine(Base):
     alarm_times = Column(String) # 알림 시간 (예: "08:30,13:00,19:00")
     start_date = Column(String)
     end_date = Column(String)
+    taken = Column(Boolean, default=False)
 
 # 일정 테이블
 class Schedule(Base):

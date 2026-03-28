@@ -14,7 +14,7 @@ class ApiService {
         return data.map((e) => {
           "name": e["name"] ?? '',
           "time": e["alarm_times"] ?? '',
-          "taken": false,
+          "taken": e["taken"] == 1 || e["taken"] == true,
           "id": e["id"],
         }).toList();
       }
@@ -66,6 +66,19 @@ class ApiService {
       return false;
     }
   }
+  
+  static Future<bool> uncompleteSchedule(int id) async {
+  try {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/schedule/$id/uncomplete'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    return res.statusCode == 200;
+  } catch (e) {
+    print('일정 취소 오류: $e');
+    return false;
+  }
+}
 
   // ===== 일정 =====
   static Future<List<Map>> getSchedules() async {
@@ -76,7 +89,7 @@ class ApiService {
         return data.map((e) => {
           "title": e["title"] ?? '',
           "time": e["datetime"] ?? '',
-          "status": e["is_completed"] == true ? "완료" : "예정",
+          "status": e["is_completed"] == true ? "완료" : "",
           "id": e["id"],
         }).toList();
       }
@@ -179,4 +192,16 @@ class ApiService {
       return false;
     }
   }
+  static Future<bool> untakeMedication(int id) async {
+  try {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/medicine/$id/untake'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    return res.statusCode == 200;
+  } catch (e) {
+    print('복약 취소 오류: $e');
+    return false;
+  }
+}
 }
