@@ -56,3 +56,28 @@ async def get_conversation_by_session(session_id: str, db: AsyncSession = Depend
         .order_by(Conversation.created_at)
     )
     return result.scalars().all()
+
+# 멀티턴용 - 세션별 최근 대화 N개 조회
+@router.get("/context/{session_id}")
+async def get_conversation_context(
+    session_id: str,
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Conversation)
+        .where(Conversation.session_id == session_id)
+        .order_by(Conversation.created_at.desc())
+        .limit(limit)
+    )
+    items = result.scalars().all()
+    items.reverse()  # 최신순으로 가져온 걸 다시 시간순으로
+
+    # LLM에 바로 넣을 수 있는 형식으로 변환
+    return {
+        "session_id": session_id,
+        "context": [
+            {"role": item.role, "content": item.content}
+            for item in items
+        ]
+    }
