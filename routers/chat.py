@@ -4,20 +4,28 @@ from sqlalchemy import select, func
 from database import get_db
 from models import Conversation
 from schemas import ConversationCreate, ConversationResponse
+from crypto import encrypt, decrypt
 from typing import List
 
 router = APIRouter()
 
-# 대화 저장
+# 대화 저장 (암호화)
 @router.post("/", response_model=ConversationResponse)
 async def create_conversation(data: ConversationCreate, db: AsyncSession = Depends(get_db)):
-    conversation = Conversation(**data.model_dump())
+    conversation = Conversation(
+        session_id=data.session_id,
+        role=data.role,
+        content=encrypt(data.content)  # 암호화해서 저장
+    )
     db.add(conversation)
     await db.commit()
     await db.refresh(conversation)
+
+    # 응답할 때는 복호화해서 반환
+    conversation.content = decrypt(conversation.content)
     return conversation
 
-# 대화 전체 조회 (페이지네이션)
+# 대화 전체 조회 (페이지네이션 + 복호화)
 @router.get("/", response_model=dict)
 async def get_conversations(
     page: int = Query(1, ge=1),
@@ -26,11 +34,9 @@ async def get_conversations(
 ):
     offset = (page - 1) * size
 
-    # 전체 개수
     count_result = await db.execute(select(func.count(Conversation.id)))
     total = count_result.scalar()
 
-    # 페이지 데이터
     result = await db.execute(
         select(Conversation)
         .order_by(Conversation.created_at.desc())
@@ -38,6 +44,10 @@ async def get_conversations(
         .limit(size)
     )
     items = result.scalars().all()
+
+    # 복호화해서 반환
+    for item in items:
+        item.content = decrypt(item.content)
 
     return {
         "total": total,
@@ -47,7 +57,7 @@ async def get_conversations(
         "items": items
     }
 
-# 세션별 대화 조회
+# 세션별 대화 조회 (복호화)
 @router.get("/{session_id}", response_model=List[ConversationResponse])
 async def get_conversation_by_session(session_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -55,9 +65,14 @@ async def get_conversation_by_session(session_id: str, db: AsyncSession = Depend
         .where(Conversation.session_id == session_id)
         .order_by(Conversation.created_at)
     )
-    return result.scalars().all()
+    items = result.scalars().all()
 
-# 멀티턴용 - 세션별 최근 대화 N개 조회
+    for item in items:
+        item.content = decrypt(item.content)
+
+    return items
+
+# 멀티턴용 - 세션별 최근 대화 N개 조회 (복호화)
 @router.get("/context/{session_id}")
 async def get_conversation_context(
     session_id: str,
@@ -71,13 +86,12 @@ async def get_conversation_context(
         .limit(limit)
     )
     items = result.scalars().all()
-    items.reverse()  # 최신순으로 가져온 걸 다시 시간순으로
+    items.reverse()
 
-    # LLM에 바로 넣을 수 있는 형식으로 변환
     return {
         "session_id": session_id,
         "context": [
-            {"role": item.role, "content": item.content}
+            {"role": item.role, "content": decrypt(item.content)}
             for item in items
         ]
     }
