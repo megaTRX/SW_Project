@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? "";
 final String url = "https://api.openweathermap.org/data/2.5/weather?q=Seoul&appid=$apiKey&units=metric";
 
-const String baseUrl = 'http://127.0.0.1:8000';
+const String baseUrl = 'http://172.30.1.84:8000';
 
 class ApiService {
 

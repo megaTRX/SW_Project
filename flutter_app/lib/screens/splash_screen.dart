@@ -36,8 +36,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const LoginScreen(),
-          transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+          pageBuilder: (_, _, _) => const LoginScreen(),
+          transitionsBuilder: (_, anim, _, child) => FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 400),
         ),
       );
@@ -103,7 +103,9 @@ class _DotLoaderState extends State<_DotLoader> with TickerProviderStateMixin {
   }
 
   @override
-  void dispose() { for (final c in _ctrls) c.dispose(); super.dispose(); }
+  void dispose() { for (final c in _ctrls) {
+    c.dispose();
+  } super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +115,7 @@ class _DotLoaderState extends State<_DotLoader> with TickerProviderStateMixin {
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: AnimatedBuilder(
           animation: _ctrls[i],
-          builder: (_, __) => Opacity(
+          builder: (_, _) => Opacity(
             opacity: 0.3 + _ctrls[i].value * 0.7,
             child: Transform.scale(
               scale: 0.8 + _ctrls[i].value * 0.2,

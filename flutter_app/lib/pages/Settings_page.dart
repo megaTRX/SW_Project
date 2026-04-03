@@ -182,6 +182,72 @@ class _SettingsPageState extends State<SettingsPage> {
 
           const SizedBox(height: 24),
 
+          // 소셜 로그인
+          _SectionTitle(title: '소셜 로그인'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '간편 로그인 연동',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '소셜 계정으로 빠르게 로그인하세요',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _SocialButton(
+                        color: const Color(0xFFFEE500),
+                        label: '카카오',
+                        icon: Icons.chat_bubble_rounded,
+                        iconColor: const Color(0xFF3C1E1E),
+                        onTap: () => _showSocialLoginDialog(context, '카카오'),
+                      ),
+                      _SocialButton(
+                        color: const Color(0xFF03C75A),
+                        label: '네이버',
+                        customText: 'N',
+                        iconColor: Colors.white,
+                        onTap: () => _showSocialLoginDialog(context, '네이버'),
+                      ),
+                      _SocialButton(
+                        color: Colors.white,
+                        label: 'Apple',
+                        icon: Icons.apple_rounded,
+                        iconColor: Colors.black,
+                        border: true,
+                        onTap: () => _showSocialLoginDialog(context, 'Apple'),
+                      ),
+                      _SocialButton(
+                        color: Colors.white,
+                        label: 'Google',
+                        googleIcon: true,
+                        iconColor: Colors.transparent,
+                        border: true,
+                        onTap: () => _showSocialLoginDialog(context, 'Google'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // 앱 정보
           _SectionTitle(title: '앱 정보'),
           _SettingsGroup(children: [
@@ -223,6 +289,27 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
 
           const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  void _showSocialLoginDialog(BuildContext context, String provider) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('$provider 로그인', style: const TextStyle(fontWeight: FontWeight.w700)),
+        content: Text('$provider 계정으로 로그인하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소', style: TextStyle(color: Color(0xFF94A3B8))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('로그인', style: TextStyle(color: Color(0xFF6366F1))),
+          ),
         ],
       ),
     );
@@ -363,6 +450,112 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
+// ===== 소셜 로그인 버튼 =====
+class _SocialButton extends StatelessWidget {
+  final Color color;
+  final String label;
+  final IconData? icon;
+  final String? customText;
+  final Color iconColor;
+  final bool border;
+  final bool googleIcon;
+  final VoidCallback onTap;
+
+  const _SocialButton({
+    required this.color,
+    required this.label,
+    this.icon,
+    this.customText,
+    required this.iconColor,
+    this.border = false,
+    this.googleIcon = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: border ? Border.all(color: const Color(0xFFE2E8F0), width: 1.5) : null,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Center(
+              child: googleIcon
+                  ? _GoogleIcon()
+                  : customText != null
+                      ? Text(customText!, style: TextStyle(color: iconColor, fontSize: 22, fontWeight: FontWeight.w900))
+                      : Icon(icon, color: iconColor, size: 28),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoogleIcon extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 24, height: 24,
+      child: CustomPaint(painter: _GooglePainter()),
+    );
+  }
+}
+
+class _GooglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width / 2;
+
+    // 파란색 조각
+    final bluePaint = Paint()..color = const Color(0xFF4285F4)..style = PaintingStyle.fill;
+    // 빨간색 조각
+    final redPaint = Paint()..color = const Color(0xFFEA4335)..style = PaintingStyle.fill;
+    // 노란색 조각
+    final yellowPaint = Paint()..color = const Color(0xFFFBBC05)..style = PaintingStyle.fill;
+    // 초록색 조각
+    final greenPaint = Paint()..color = const Color(0xFF34A853)..style = PaintingStyle.fill;
+
+    // 빨간색 (위쪽)
+    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r),
+        -2.2, 1.6, true, redPaint);
+    // 파란색 (오른쪽)
+    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r),
+        -0.6, 1.6, true, bluePaint);
+    // 초록색 (아래쪽)
+    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r),
+        1.0, 1.2, true, greenPaint);
+    // 노란색 (왼쪽)
+    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r),
+        2.2, 1.0, true, yellowPaint);
+
+    // 흰색 중앙 원
+    final whitePaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(cx, cy), r * 0.55, whitePaint);
+
+    // 파란색 오른쪽 바
+    final barPaint = Paint()..color = const Color(0xFF4285F4)..style = PaintingStyle.fill;
+    canvas.drawRect(Rect.fromLTWH(cx, cy - r * 0.15, r * 0.9, r * 0.3), barPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _SectionTitle extends StatelessWidget {
   final String title;
   const _SectionTitle({required this.title});
@@ -421,7 +614,7 @@ class _SwitchTile extends StatelessWidget {
             Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B))),
             Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
           ])),
-          CupertinoSwitch(value: value, onChanged: onChanged, activeColor: const Color(0xFF6366F1)),
+          CupertinoSwitch(value: value, onChanged: onChanged, activeTrackColor: const Color(0xFF6366F1)),
         ],
       ),
     );

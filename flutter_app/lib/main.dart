@@ -6,10 +6,20 @@ import 'pages/log_page.dart';
 import 'pages/camera_page.dart';
 import 'pages/settings_page.dart';
 import 'screens/splash_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // 패키지 임포트
 
 void main() async {
-  await dotenv.load(fileName: ".env"); 
+  // 1. Flutter 엔진 초기화 보장 (비동기 작업 전 필수)
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    // 2. .env 파일 로드
+    await dotenv.load(fileName: ".env");
+    print("✅ 환경 변수 로드 성공!");
+  } catch (e) {
+    print("❌ .env 파일을 찾을 수 없거나 로드에 실패했습니다: $e");
+  }
+
   runApp(const MyApp());
 }
 
@@ -118,6 +128,11 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
+                  if (_errorMsg.isNotEmpty) 
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(_errorMsg, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                    ),
                   SizedBox(
                     height: 52,
                     child: ElevatedButton(
@@ -151,7 +166,6 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
-  // 탭 변경 함수 (DashboardPage에서 호출 가능하도록)
   void _onTabChange(int index) {
     setState(() {
       _selectedIndex = index;
@@ -160,9 +174,8 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 페이지 리스트를 build 안에 두어 _onTabChange를 전달할 수 있게 합니다.
     final List<Widget> pages = [
-      DashboardPage(onTabChange: _onTabChange), // 이 부분이 핵심!
+      DashboardPage(onTabChange: _onTabChange),
       const MedPage(),
       const SchedulePage(),
       const LogPage(),
