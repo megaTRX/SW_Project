@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database import get_db
-from models import Medicine
+from models import Medicine, Alert
 from schemas import MedicineCreate, MedicineResponse
 from typing import List
 
@@ -22,6 +22,28 @@ async def create_medicine(data: MedicineCreate, db: AsyncSession = Depends(get_d
 async def get_medicines(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Medicine))
     return result.scalars().all()
+
+# 복약 완료 처리
+@router.patch("/{medicine_id}/take")
+async def take_medicine(medicine_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Medicine).where(Medicine.id == medicine_id))
+    medicine = result.scalar_one_or_none()
+    if not medicine:
+        raise HTTPException(status_code=404, detail="복약 정보를 찾을 수 없습니다")
+    medicine.taken = True
+    await db.commit()
+    return {"message": "복약 완료 처리됨", "medicine_id": medicine_id}
+
+# 복약 완료 취소
+@router.patch("/{medicine_id}/untake")
+async def untake_medicine(medicine_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Medicine).where(Medicine.id == medicine_id))
+    medicine = result.scalar_one_or_none()
+    if not medicine:
+        raise HTTPException(status_code=404, detail="복약 정보를 찾을 수 없습니다")
+    medicine.taken = False
+    await db.commit()
+    return {"message": "복약 완료 취소됨", "medicine_id": medicine_id}
 
 # 복약 삭제
 @router.delete("/{medicine_id}")
