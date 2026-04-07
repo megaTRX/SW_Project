@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? "";
 final String url = "https://api.openweathermap.org/data/2.5/weather?q=Seoul&appid=$apiKey&units=metric";
 
-const String baseUrl = 'http://172.30.1.84:8000';
+const String baseUrl = 'http://172.27.177.208:8000';
 
 class ApiService {
 
@@ -147,23 +147,45 @@ class ApiService {
   }
 
   // ===== 대화 로그 =====
-  static Future<List<Map>> getChatLogs() async {
-    try {
-      final res = await http.get(Uri.parse('$baseUrl/chat/'));
-      if (res.statusCode == 200) {
-        final List data = jsonDecode(res.body);
-        return data.map((e) => {
-          "time": e["created_at"] ?? '',
-          "user": e["content"] ?? '',
-          "bot": '',
-          "type": '생활정보',
-        }).toList();
+static Future<List<Map>> getChatLogs() async {
+  try {
+    final res = await http.get(Uri.parse('$baseUrl/chat/'));
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
+      
+      // user/assistant 쌍으로 묶기
+      final List<Map> result = [];
+      Map? currentPair;
+      
+      for (final e in data) {
+        final role = e["role"]?.toString() ?? '';
+        final content = e["content"]?.toString() ?? '';
+        final time = e["created_at"]?.toString() ?? '';
+        
+        if (role == "user") {
+          currentPair = {
+            "user": content,
+            "bot": "",
+            "time": time,
+            "type": "생활정보",
+          };
+        } else if (role == "assistant" && currentPair != null) {
+          currentPair["bot"] = content;
+          result.add(currentPair);
+          currentPair = null;
+        }
       }
-    } catch (e) {
-      print('대화 로그 조회 오류: $e');
+      // bot 응답 없는 마지막 user 메시지 처리
+      if (currentPair != null) result.add(currentPair!);
+      
+      return result.reversed.toList();
     }
-    return [];
+  } catch (e) {
+    print('대화 로그 조회 오류: $e');
   }
+  return [];
+}
+
 
   // ===== 알림 =====
   static Future<List<Map>> getAlerts() async {

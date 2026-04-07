@@ -103,6 +103,12 @@ class _MedPageState extends State<MedPage> {
                           await _loadMeds();
                         }
                       },
+                      onDelete: () async {
+                        if (med["id"] != null) {
+                          await ApiService.deleteMedication(med["id"]);
+                          await _loadMeds();
+                        }
+                      },
                     )),
                     const SizedBox(height: 20),
                   ],
@@ -115,6 +121,12 @@ class _MedPageState extends State<MedPage> {
                       onTap: () async {
                         if (med["id"] != null) {
                           await ApiService.untakeMedication(med["id"]);
+                          await _loadMeds();
+                        }
+                      },
+                      onDelete: () async {
+                        if (med["id"] != null) {
+                          await ApiService.deleteMedication(med["id"]);
                           await _loadMeds();
                         }
                       },
@@ -160,8 +172,9 @@ class _MedCard extends StatelessWidget {
   final Map med;
   final bool isTaken;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
-  const _MedCard({required this.med, required this.isTaken, required this.onTap});
+  const _MedCard({required this.med, required this.isTaken, required this.onTap, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +236,34 @@ class _MedCard extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Text('복약 삭제', style: TextStyle(fontWeight: FontWeight.w700)),
+                  content: Text('${med["name"]}을(를) 삭제할까요?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false),
+                        child: const Text('취소', style: TextStyle(color: Color(0xFF94A3B8)))),
+                    TextButton(onPressed: () => Navigator.pop(context, true),
+                        child: const Text('삭제', style: TextStyle(color: Color(0xFFEF4444)))),
+                  ],
+                ),
+              );
+              if (confirm == true) onDelete();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 16),
+            ),
+          ),
         ],
       ),
     );
@@ -239,8 +280,25 @@ class _AddMedCard extends StatefulWidget {
 
 class _AddMedCardState extends State<_AddMedCard> {
   final _nameController = TextEditingController();
-  final _timeController = TextEditingController();
   bool _expanded = false;
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+
+  String _formatDateTime() {
+    if (_selectedDate != null && _selectedTime != null) {
+      final y = _selectedDate!.year;
+      final mo = _selectedDate!.month.toString().padLeft(2, '0');
+      final d = _selectedDate!.day.toString().padLeft(2, '0');
+      final h = _selectedTime!.hour.toString().padLeft(2, '0');
+      final mi = _selectedTime!.minute.toString().padLeft(2, '0');
+      return '$y-$mo-$d $h:$mi';
+    } else if (_selectedTime != null) {
+      final h = _selectedTime!.hour.toString().padLeft(2, '0');
+      final mi = _selectedTime!.minute.toString().padLeft(2, '0');
+      return '$h:$mi';
+    }
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +328,8 @@ class _AddMedCardState extends State<_AddMedCard> {
                   const Expanded(
                     child: Text('새 복약 추가', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B))),
                   ),
-                  Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: const Color(0xFF94A3B8)),
+                  Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                      color: const Color(0xFF94A3B8)),
                 ],
               ),
             ),
@@ -279,6 +338,7 @@ class _AddMedCardState extends State<_AddMedCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Divider(color: Color(0xFFE2E8F0)),
                   const SizedBox(height: 12),
@@ -288,16 +348,85 @@ class _AddMedCardState extends State<_AddMedCard> {
                       labelText: '약 이름',
                       prefixIcon: const Icon(Icons.medication_rounded, color: Color(0xFF6366F1)),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _timeController,
-                    decoration: InputDecoration(
-                      labelText: '복용 시간 (예: 10:00)',
-                      prefixIcon: const Icon(Icons.access_time_rounded, color: Color(0xFF6366F1)),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final d = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime(2030),
+                            );
+                            if (d != null) setState(() => _selectedDate = d);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF6366F1)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _selectedDate == null
+                                      ? '날짜 선택'
+                                      : '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: _selectedDate == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final t = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.now(),
+                            );
+                            if (t != null) setState(() => _selectedTime = t);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF6366F1)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _selectedTime == null
+                                      ? '시간 선택'
+                                      : '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: _selectedTime == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 14),
                   SizedBox(
@@ -305,11 +434,15 @@ class _AddMedCardState extends State<_AddMedCard> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        if (_nameController.text.isNotEmpty && _timeController.text.isNotEmpty) {
-                          widget.onAdd(_nameController.text, _timeController.text);
+                        final time = _formatDateTime();
+                        if (_nameController.text.isNotEmpty && _selectedTime != null) {
+                          widget.onAdd(_nameController.text, time);
                           _nameController.clear();
-                          _timeController.clear();
-                          setState(() => _expanded = false);
+                          setState(() {
+                            _expanded = false;
+                            _selectedDate = null;
+                            _selectedTime = null;
+                          });
                         }
                       },
                       style: ElevatedButton.styleFrom(

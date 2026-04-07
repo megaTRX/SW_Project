@@ -26,7 +26,7 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Map> _meds = [];
   List<Map> _scheds = [];
 
-  static const String _baseUrl = 'http://localhost:8000';
+  static const String _baseUrl = 'http://172.27.177.208:8000';
   String get _weatherApiKey => dotenv.env['WEATHER_API_KEY'] ?? '';
 
 

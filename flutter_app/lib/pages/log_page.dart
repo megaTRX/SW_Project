@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/api_service.dart';
 
@@ -10,10 +11,11 @@ class LogPage extends StatefulWidget {
 
 class _LogPageState extends State<LogPage> {
   String _selectedCategory = '전체';
-  final _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   String _keyword = '';
-  List<Map> _logs = [];
+  List<Map<String, dynamic>> _logs = [];
   bool _isLoading = true;
+  Timer? _timer;
 
   final List<String> _categories = ['전체', '생활정보', '복약', '일정', '긴급'];
 
@@ -21,192 +23,380 @@ class _LogPageState extends State<LogPage> {
   void initState() {
     super.initState();
     _loadLogs();
+
+    // 5초마다 자동 새로고침
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _loadLogs(showLoading: false);
+    });
   }
 
-  Future<void> _loadLogs() async {
-    setState(() => _isLoading = true);
-    final data = await ApiService.getChatLogs();
-    setState(() {
-      _logs = data.isEmpty ? [
-        {"time": "09:10", "user": "오늘 날씨 알려줘", "bot": "오늘은 맑고 따뜻합니다.", "type": "생활정보"},
-        {"time": "10:00", "user": "오늘 약 먹을 시간 알려줘", "bot": "오전 10시에 혈압약 드실 시간입니다.", "type": "복약"},
-        {"time": "13:00", "user": "내 일정 알려줘", "bot": "오후 3시에 복지관 방문 일정이 있습니다.", "type": "일정"},
-        {"time": "15:30", "user": "살려줘", "bot": "긴급 호출이 접수되었습니다.", "type": "긴급"},
-      ] : data;
-      _isLoading = false;
-    });
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadLogs({bool showLoading = true}) async {
+    if (showLoading && mounted) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      final data = await ApiService.getChatLogs();
+
+      final parsedLogs = data.isEmpty
+          ? <Map<String, dynamic>>[
+              {
+                "time": "09:10",
+                "user": "오늘 날씨 알려줘",
+                "bot": "오늘은 맑고 따뜻합니다.",
+                "type": "생활정보"
+              },
+              {
+                "time": "10:00",
+                "user": "오늘 약 먹을 시간 알려줘",
+                "bot": "오전 10시에 혈압약 드실 시간입니다.",
+                "type": "복약"
+              },
+              {
+                "time": "13:00",
+                "user": "내 일정 알려줘",
+                "bot": "오후 3시에 복지관 방문 일정이 있습니다.",
+                "type": "일정"
+              },
+              {
+                "time": "15:30",
+                "user": "살려줘",
+                "bot": "긴급 호출이 접수되었습니다.",
+                "type": "긴급"
+              },
+            ]
+          : (() {
+    List<Map<String, dynamic>> result = [];
+
+    for (int i = 0; i < data.length - 1; i++) {
+      final current = Map<String, dynamic>.from(data[i]);
+      final next = Map<String, dynamic>.from(data[i + 1]);
+
+      // user 다음에 bot이면 하나로 합치기
+      if (current.containsKey("user") && next.containsKey("bot")) {
+        result.add({
+          "time": current["time"] ?? next["time"] ?? "",
+          "user": current["user"],
+          "bot": next["bot"],
+          "type": current["type"] ?? next["type"] ?? "생활정보",
+        });
+        i++; // 다음꺼 스킵 (이미 합쳤으니까)
+      }
+    }
+
+    return result;
+  })();
+
+      if (!mounted) return;
+
+      setState(() {
+        _logs = parsedLogs;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('대화 내용을 불러오지 못했어요. 다시 시도해주세요.'),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final filtered = _logs.where((l) {
-      final matchCategory = _selectedCategory == '전체' || l["type"] == _selectedCategory;
+      final matchCategory =
+          _selectedCategory == '전체' || l["type"] == _selectedCategory;
+
+      final userText = (l["user"] ?? '').toString();
+      final botText = (l["bot"] ?? '').toString();
+
       final matchKeyword = _keyword.isEmpty ||
-          l["user"].toString().contains(_keyword) ||
-          l["bot"].toString().contains(_keyword);
+          userText.contains(_keyword) ||
+          botText.contains(_keyword);
+
       return matchCategory && matchKeyword;
     }).toList();
 
     final Map<String, int> stats = {};
     for (final l in _logs) {
-      stats[l["type"] as String] = (stats[l["type"] as String] ?? 0) + 1;
+      final type = (l["type"] ?? '').toString();
+      if (type.isNotEmpty) {
+        stats[type] = (stats[type] ?? 0) + 1;
+      }
     }
 
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 상단 헤더
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('대화 내용',
-                    style: TextStyle(color: Colors.white70, fontSize: 13)),
-                const SizedBox(height: 6),
-                Text('총 ${_logs.length}개의 대화',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _StatChip(label: '생활정보', count: stats['생활정보'] ?? 0, color: const Color(0xFF3B82F6)),
-                    const SizedBox(width: 8),
-                    _StatChip(label: '복약', count: stats['복약'] ?? 0, color: const Color(0xFF10B981)),
-                    const SizedBox(width: 8),
-                    _StatChip(label: '일정', count: stats['일정'] ?? 0, color: const Color(0xFF8B5CF6)),
-                    const SizedBox(width: 8),
-                    _StatChip(label: '긴급', count: stats['긴급'] ?? 0, color: const Color(0xFFEF4444)),
-                  ],
+    return RefreshIndicator(
+      onRefresh: () => _loadLogs(showLoading: false),
+      color: const Color(0xFF6366F1),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 상단 헤더
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 검색창
-                TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => _keyword = v),
-                  decoration: InputDecoration(
-                    hintText: '대화 내용 검색...',
-                    hintStyle: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 14),
-                    prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF94A3B8)),
-                    suffixIcon: _keyword.isNotEmpty
-                        ? GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() => _keyword = '');
-                            },
-                            child: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8)),
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '대화 내용',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // 카테고리 필터
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _categories.map((cat) {
-                      final isSelected = _selectedCategory == cat;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedCategory = cat),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '총 ${_logs.length}개의 대화',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () async {
+                          await _loadLogs();
+                        },
                         child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF6366F1) : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.white.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+                              color: Colors.white.withOpacity(0.25),
                             ),
                           ),
-                          child: Text(cat,
-                              style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600,
-                                color: isSelected ? Colors.white : const Color(0xFF64748B),
-                              )),
+                          child: const Icon(
+                            Icons.refresh_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _StatChip(
+                          label: '생활정보',
+                          count: stats['생활정보'] ?? 0,
+                          color: const Color(0xFF3B82F6),
+                        ),
+                        const SizedBox(width: 8),
+                        _StatChip(
+                          label: '복약',
+                          count: stats['복약'] ?? 0,
+                          color: const Color(0xFF10B981),
+                        ),
+                        const SizedBox(width: 8),
+                        _StatChip(
+                          label: '일정',
+                          count: stats['일정'] ?? 0,
+                          color: const Color(0xFF8B5CF6),
+                        ),
+                        const SizedBox(width: 8),
+                        _StatChip(
+                          label: '긴급',
+                          count: stats['긴급'] ?? 0,
+                          color: const Color(0xFFEF4444),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-                const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-                Text('${filtered.length}개의 대화',
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
-
-                const SizedBox(height: 10),
-
-                if (_isLoading)
-                  const Center(child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: CircularProgressIndicator(color: Color(0xFF6366F1)),
-                  ))
-                else if (filtered.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 60),
-                      child: Column(
-                        children: [
-                          Icon(Icons.chat_bubble_outline_rounded,
-                              color: Color(0xFFCBD5E1), size: 48),
-                          SizedBox(height: 12),
-                          Text('검색 결과가 없어요',
-                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15)),
-                        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 검색창
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (v) => setState(() => _keyword = v),
+                    decoration: InputDecoration(
+                      hintText: '대화 내용 검색...',
+                      hintStyle: const TextStyle(
+                        color: Color(0xFFCBD5E1),
+                        fontSize: 14,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      suffixIcon: _keyword.isNotEmpty
+                          ? GestureDetector(
+                              onTap: () {
+                                _searchController.clear();
+                                setState(() => _keyword = '');
+                              },
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide:
+                            const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide:
+                            const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF6366F1),
+                          width: 2,
+                        ),
                       ),
                     ),
-                  )
-                else
-                  ...filtered.map((l) => _ChatBubbleCard(log: l)),
+                  ),
 
-                const SizedBox(height: 24),
-              ],
+                  const SizedBox(height: 12),
+
+                  // 카테고리 필터
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _categories.map((cat) {
+                        final isSelected = _selectedCategory == cat;
+                        return GestureDetector(
+                          onTap: () => setState(() => _selectedCategory = cat),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF6366F1)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0xFF6366F1)
+                                    : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Text(
+                              cat,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Text(
+                    '${filtered.length}개의 대화',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF6366F1),
+                        ),
+                      ),
+                    )
+                  else if (filtered.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 60),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              color: Color(0xFFCBD5E1),
+                              size: 48,
+                            ),
+                            SizedBox(height: 12),
+                            Text(
+                              '검색 결과가 없어요',
+                              style: TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    ...filtered.map((l) => _ChatBubbleCard(log: l)),
+
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
 class _ChatBubbleCard extends StatelessWidget {
-  final Map log;
+  final Map<String, dynamic> log;
+
   const _ChatBubbleCard({required this.log});
 
   @override
@@ -217,6 +407,7 @@ class _ChatBubbleCard extends StatelessWidget {
       "일정": const Color(0xFF8B5CF6),
       "긴급": const Color(0xFFEF4444),
     };
+
     final bgColors = {
       "생활정보": const Color(0xFFEFF6FF),
       "복약": const Color(0xFFF0FDF4),
@@ -224,9 +415,14 @@ class _ChatBubbleCard extends StatelessWidget {
       "긴급": const Color(0xFFFEF2F2),
     };
 
-    final c = colors[log["type"]] ?? const Color(0xFF94A3B8);
-    final bg = bgColors[log["type"]] ?? const Color(0xFFF8FAFC);
-    final isEmergency = log["type"] == "긴급";
+    final type = (log["type"] ?? '').toString();
+    final time = (log["time"] ?? '').toString();
+    final user = (log["user"] ?? '').toString();
+    final bot = (log["bot"] ?? '').toString();
+
+    final c = colors[type] ?? const Color(0xFF94A3B8);
+    final bg = bgColors[type] ?? const Color(0xFFF8FAFC);
+    final isEmergency = type == "긴급";
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -234,9 +430,16 @@ class _ChatBubbleCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isEmergency ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
+          color: isEmergency
+              ? const Color(0xFFFECACA)
+              : const Color(0xFFE2E8F0),
         ),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,16 +449,38 @@ class _ChatBubbleCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-                  child: Text(log["type"] as String,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    type,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: c,
+                    ),
+                  ),
                 ),
                 const Spacer(),
-                const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFF94A3B8)),
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 12,
+                  color: Color(0xFF94A3B8),
+                ),
                 const SizedBox(width: 4),
-                Text(log["time"] as String,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                Flexible(
+                  child: Text(
+                    time,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -266,16 +491,23 @@ class _ChatBubbleCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 28, height: 28,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(14)),
-                  child: const Center(child: Text('👴', style: TextStyle(fontSize: 14))),
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Center(
+                    child: Text('👴', style: TextStyle(fontSize: 14)),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F5F9),
                       borderRadius: const BorderRadius.only(
@@ -284,8 +516,13 @@ class _ChatBubbleCard extends StatelessWidget {
                         bottomRight: Radius.circular(12),
                       ),
                     ),
-                    child: Text(log["user"] as String,
-                        style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B))),
+                    child: Text(
+                      user,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -297,16 +534,23 @@ class _ChatBubbleCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 28, height: 28,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(14)),
-                  child: const Center(child: Text('🤖', style: TextStyle(fontSize: 14))),
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Center(
+                    child: Text('🤖', style: TextStyle(fontSize: 14)),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: isEmergency
                           ? const Color(0xFFFEF2F2)
@@ -317,12 +561,15 @@ class _ChatBubbleCard extends StatelessWidget {
                         bottomRight: Radius.circular(12),
                       ),
                     ),
-                    child: Text(log["bot"] as String,
-                        style: TextStyle(
-                            fontSize: 14,
-                            color: isEmergency
-                                ? const Color(0xFFDC2626)
-                                : const Color(0xFF1E293B))),
+                    child: Text(
+                      bot,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isEmergency
+                            ? const Color(0xFFDC2626)
+                            : const Color(0xFF1E293B),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -339,7 +586,11 @@ class _StatChip extends StatelessWidget {
   final int count;
   final Color color;
 
-  const _StatChip({required this.label, required this.count, required this.color});
+  const _StatChip({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -352,13 +603,22 @@ class _StatChip extends StatelessWidget {
       child: Row(
         children: [
           Container(
-              width: 6, height: 6,
-              decoration: BoxDecoration(
-                  color: color, borderRadius: BorderRadius.circular(3))),
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
           const SizedBox(width: 5),
-          Text('$label $count',
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(
+            '$label $count',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

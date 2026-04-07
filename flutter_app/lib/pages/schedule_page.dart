@@ -103,6 +103,12 @@ class _SchedulePageState extends State<SchedulePage> {
                         }
                         setState(() => _scheds[i]["status"] = status);
                       },
+                      onDelete: () async {
+                        if (s["id"] != null) {
+                          await ApiService.deleteSchedule(s["id"]);
+                          _loadScheds();
+                        }
+                      },
                     )),
                     const SizedBox(height: 20),
                   ],
@@ -119,6 +125,12 @@ class _SchedulePageState extends State<SchedulePage> {
                           await ApiService.uncompleteSchedule(s["id"]);
                         }
                         setState(() => _scheds[i]["status"] = status);
+                      },
+                      onDelete: () async {
+                        if (s["id"] != null) {
+                          await ApiService.deleteSchedule(s["id"]);
+                          _loadScheds();
+                        }
                       },
                     )),
                     const SizedBox(height: 20),
@@ -158,8 +170,9 @@ class _SchedulePageState extends State<SchedulePage> {
 class _SchedCard extends StatelessWidget {
   final Map sched;
   final Function(String) onStatusChange;
+  final VoidCallback onDelete;
 
-  const _SchedCard({required this.sched, required this.onStatusChange});
+  const _SchedCard({required this.sched, required this.onStatusChange, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -258,6 +271,34 @@ class _SchedCard extends StatelessWidget {
               ),
             ),
           ],
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Text('일정 삭제', style: TextStyle(fontWeight: FontWeight.w700)),
+                  content: Text('${sched["title"]}을(를) 삭제할까요?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false),
+                        child: const Text('취소', style: TextStyle(color: Color(0xFF94A3B8)))),
+                    TextButton(onPressed: () => Navigator.pop(context, true),
+                        child: const Text('삭제', style: TextStyle(color: Color(0xFFEF4444)))),
+                  ],
+                ),
+              );
+              if (confirm == true) onDelete();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 16),
+            ),
+          ),
         ],
       ),
     );

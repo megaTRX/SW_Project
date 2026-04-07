@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     try {
       final res = await http.post(
-        Uri.parse('http://172.30.1.84:8000/auth/token'),
+        Uri.parse('http://172.27.177.208:8000/auth/token'),
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: 'username=$id&password=$pw',
       ).timeout(const Duration(seconds: 5));

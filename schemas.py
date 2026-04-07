@@ -10,7 +10,7 @@ class ConversationCreate(BaseModel):
 
 class ConversationResponse(ConversationCreate):
     id: int
-    created_at: datetime  # str → datetime 으로 변경
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -19,13 +19,13 @@ class ConversationResponse(ConversationCreate):
 class MedicineCreate(BaseModel):
     name: str
     dose: str
-    alarm_times: str  # 예: "08:30,13:00,19:00"
+    alarm_times: str
     start_date: str
     end_date: str
 
 class MedicineResponse(MedicineCreate):
     id: int
-    taken: bool = False  
+    taken: bool = False
 
     class Config:
         from_attributes = True
@@ -51,7 +51,39 @@ class AlertCreate(BaseModel):
 class AlertResponse(AlertCreate):
     id: int
     is_resolved: bool
-    created_at: datetime  # str → datetime 으로 변경
+    created_at: datetime
 
     class Config:
         from_attributes = True
+
+# 유저
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: Optional[str] = "user"
+    nickname: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    role: Optional[str] = None
+    nickname: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    role: str
+    nickname: Optional[str]
+    social_provider: Optional[str]
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
