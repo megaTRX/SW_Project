@@ -29,7 +29,7 @@ async def create_conversation(data: ConversationCreate, db: AsyncSession = Depen
 @router.get("/", response_model=dict)
 async def get_conversations(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db)
 ):
     offset = (page - 1) * size
@@ -44,6 +44,23 @@ async def get_conversations(
         .limit(size)
     )
     items = result.scalars().all()
+
+    return {
+        "total": total,
+        "page": page,
+        "size": size,
+        "total_pages": (total + size - 1) // size,
+        "items": [
+            {
+                "id": item.id,
+                "session_id": item.session_id,
+                "role": item.role,
+                "content": decrypt(item.content),
+                "created_at": item.created_at.isoformat() if item.created_at else None
+            }
+            for item in items
+        ]
+    }
 
     # 복호화해서 반환
     for item in items:

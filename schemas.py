@@ -28,6 +28,13 @@ class MedicineResponse(MedicineCreate):
 
     class Config:
         from_attributes = True
+        
+class MedicineResponse(MedicineCreate):
+    id: int
+    taken: bool = False  # 추가!
+
+    class Config:
+        from_attributes = True
 
 # 일정
 class ScheduleCreate(BaseModel):
@@ -54,3 +61,4 @@ class AlertResponse(AlertCreate):
 
     class Config:
         from_attributes = True
+

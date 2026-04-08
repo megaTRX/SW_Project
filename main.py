@@ -35,3 +35,8 @@ app.include_router(auth.router, prefix="/auth", tags=["인증"])
 @app.get("/")
 async def root():
     return {"status": "ok", "message": "노인케어 챗봇 백엔드 실행중 🤖"}
+
+
+# source ~/myenv/bin/activate
+# cd ~/my_ai_project
+# python3 main.py

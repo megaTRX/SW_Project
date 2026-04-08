@@ -92,3 +92,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         return {"username": username, "role": payload.get("role")}
     except JWTError:
         raise HTTPException(status_code=401, detail="토큰이 유효하지 않습니다")
+    
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "admin"
+    nickname: str = "관리자"
+
+@router.post("/register")
+async def register(data: RegisterRequest):
+    if data.username in ADMIN_USERS:
+        raise HTTPException(status_code=400, detail="이미 존재하는 아이디입니다")
+    ADMIN_USERS[data.username] = {
+        "username": data.username,
+        "hashed_password": pwd_context.hash(data.password),
+        "role": data.role,
+        "nickname": data.nickname
+    }
+    return {"message": "회원가입 완료", "username": data.username}
