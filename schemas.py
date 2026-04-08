@@ -7,10 +7,12 @@ class ConversationCreate(BaseModel):
     session_id: str
     role: str
     content: str
+    type: Optional[str] = "생활정보"
 
 class ConversationResponse(ConversationCreate):
     id: int
     created_at: datetime
+    type: Optional[str] = "생활정보"
 
     class Config:
         from_attributes = True

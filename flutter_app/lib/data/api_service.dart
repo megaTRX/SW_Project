@@ -2,13 +2,25 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// API 호출부
 final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? "";
 final String url = "https://api.openweathermap.org/data/2.5/weather?q=Seoul&appid=$apiKey&units=metric";
 
 const String baseUrl = 'http://172.27.177.208:8000';
 
 class ApiService {
+
+  // ===== 대화 분류 =====
+  static String _classifyChat(String content) {
+    final c = content;
+    if (c.contains('약') || c.contains('복약') || c.contains('약품') || c.contains('먹을') || c.contains('복용')) {
+      return '복약';
+    } else if (c.contains('일정') || c.contains('예약') || c.contains('병원') || c.contains('약속') || c.contains('방문')) {
+      return '일정';
+    } else if (c.contains('살려') || c.contains('도와줘') || c.contains('긴급') || c.contains('응급') || c.contains('아파') || c.contains('쓰러')) {
+      return '긴급';
+    }
+    return '생활정보';
+  }
 
   // ===== 복약 =====
   static Future<List<Map>> getMedications() async {
@@ -62,6 +74,19 @@ class ApiService {
     }
   }
 
+  static Future<bool> untakeMedication(int id) async {
+    try {
+      final res = await http.patch(
+        Uri.parse('$baseUrl/medicine/$id/untake'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      print('복약 취소 오류: $e');
+      return false;
+    }
+  }
+
   static Future<bool> deleteMedication(int id) async {
     try {
       final res = await http.delete(Uri.parse('$baseUrl/medicine/$id'));
@@ -71,19 +96,6 @@ class ApiService {
       return false;
     }
   }
-
-  static Future<bool> uncompleteSchedule(int id) async {
-  try {
-    final res = await http.patch(
-      Uri.parse('$baseUrl/schedule/$id/uncomplete'),
-      headers: {'Content-Type': 'application/json'},
-    );
-    return res.statusCode == 200;
-  } catch (e) {
-    print('일정 취소 오류: $e');
-    return false;
-  }
-}
 
   // ===== 일정 =====
   static Future<List<Map>> getSchedules() async {
@@ -136,6 +148,19 @@ class ApiService {
     }
   }
 
+  static Future<bool> uncompleteSchedule(int id) async {
+    try {
+      final res = await http.patch(
+        Uri.parse('$baseUrl/schedule/$id/uncomplete'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      print('일정 취소 오류: $e');
+      return false;
+    }
+  }
+
   static Future<bool> deleteSchedule(int id) async {
     try {
       final res = await http.delete(Uri.parse('$baseUrl/schedule/$id'));
@@ -147,45 +172,45 @@ class ApiService {
   }
 
   // ===== 대화 로그 =====
-static Future<List<Map>> getChatLogs() async {
-  try {
-    final res = await http.get(Uri.parse('$baseUrl/chat/'));
-    if (res.statusCode == 200) {
-      final List data = jsonDecode(res.body);
-      
-      // user/assistant 쌍으로 묶기
-      final List<Map> result = [];
-      Map? currentPair;
-      
-      for (final e in data) {
-        final role = e["role"]?.toString() ?? '';
-        final content = e["content"]?.toString() ?? '';
-        final time = e["created_at"]?.toString() ?? '';
-        
-        if (role == "user") {
-          currentPair = {
-            "user": content,
-            "bot": "",
-            "time": time,
-            "type": "생활정보",
-          };
-        } else if (role == "assistant" && currentPair != null) {
-          currentPair["bot"] = content;
-          result.add(currentPair);
-          currentPair = null;
-        }
-      }
-      // bot 응답 없는 마지막 user 메시지 처리
-      if (currentPair != null) result.add(currentPair!);
-      
-      return result.reversed.toList();
-    }
-  } catch (e) {
-    print('대화 로그 조회 오류: $e');
-  }
-  return [];
-}
+  static Future<List<Map>> getChatLogs() async {
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/chat/'));
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+        final List data = decoded is List ? decoded : (decoded['items'] ?? []);
 
+        // 오래된 순으로 정렬해서 user→bot 쌍 맞추기
+        final List reversed = data.reversed.toList();
+
+        final List<Map> result = [];
+        Map? currentPair;
+
+        for (final e in reversed) {
+          final role = e["role"]?.toString() ?? '';
+          final content = e["content"]?.toString() ?? '';
+          final time = e["created_at"]?.toString() ?? '';
+
+          if (role == "user") {
+            currentPair = {
+              "user": content,
+              "bot": "",
+              "time": time,
+              "type": _classifyChat(content),
+            };
+          } else if (role == "assistant" && currentPair != null) {
+            currentPair["bot"] = content;
+            result.add(currentPair);
+            currentPair = null;
+          }
+        }
+        if (currentPair != null) result.add(currentPair!);
+        return result.reversed.toList();
+      }
+    } catch (e) {
+      print('대화 로그 조회 오류: $e');
+    }
+    return [];
+  }
 
   // ===== 알림 =====
   static Future<List<Map>> getAlerts() async {
@@ -219,16 +244,4 @@ static Future<List<Map>> getChatLogs() async {
       return false;
     }
   }
-  static Future<bool> untakeMedication(int id) async {
-  try {
-    final res = await http.patch(
-      Uri.parse('$baseUrl/medicine/$id/untake'),
-      headers: {'Content-Type': 'application/json'},
-    );
-    return res.statusCode == 200;
-  } catch (e) {
-    print('복약 취소 오류: $e');
-    return false;
-  }
-}
 }

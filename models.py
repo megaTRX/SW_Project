@@ -10,6 +10,7 @@ class Conversation(Base):
     session_id = Column(String, index=True)
     role = Column(String)
     content = Column(String)
+    type = Column(String, default="생활정보")
     created_at = Column(DateTime, default=func.now())
 
 # 복약 정보 테이블
@@ -50,10 +51,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
-    hashed_password = Column(String, nullable=True)   # 소셜 로그인은 None
-    role = Column(String, default="user")              # "admin" or "user"
-    social_provider = Column(String, nullable=True)   # "kakao", "google", None
-    social_id = Column(String, nullable=True)         # 소셜 고유 ID
+    hashed_password = Column(String, nullable=True)
+    role = Column(String, default="user")
+    social_provider = Column(String, nullable=True)
+    social_id = Column(String, nullable=True)
     nickname = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=func.now())
