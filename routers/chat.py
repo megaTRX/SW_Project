@@ -7,10 +7,11 @@ from schemas import ConversationCreate, ConversationResponse
 from crypto import encrypt, decrypt
 from typing import List
 import httpx
+import os
 
 router = APIRouter()
 
-GEMINI_API_KEY = "AIzaSyD5n4bHGnJGHF0P9zfrzC_sCN9MaAxlJAc"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 
 
@@ -36,7 +37,6 @@ async def classify_chat(content: str) -> str:
             )
             if res.status_code == 200:
                 text = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-                # 결과에서 정확한 카테고리만 추출
                 for category in ["복약", "일정", "긴급", "생활정보"]:
                     if category in text:
                         return category
@@ -56,7 +56,6 @@ async def classify_chat(content: str) -> str:
 # 대화 저장 (암호화 + Gemini 분류)
 @router.post("/", response_model=ConversationResponse)
 async def create_conversation(data: ConversationCreate, db: AsyncSession = Depends(get_db)):
-    # user 메시지일 때만 분류
     chat_type = "생활정보"
     if data.role == "user":
         chat_type = await classify_chat(data.content)
