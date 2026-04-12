@@ -6,20 +6,23 @@ import 'pages/log_page.dart';
 import 'pages/camera_page.dart';
 import 'pages/settings_page.dart';
 import 'screens/splash_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // 패키지 임포트
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+// ── 전역 토큰 저장소 ──
+class AppState {
+  static String? accessToken;
+  static String? username;
+  static String? nickname;
+}
 
 void main() async {
-  // 1. Flutter 엔진 초기화 보장 (비동기 작업 전 필수)
   WidgetsFlutterBinding.ensureInitialized();
-  
   try {
-    // 2. .env 파일 로드
     await dotenv.load(fileName: ".env");
     print("✅ 환경 변수 로드 성공!");
   } catch (e) {
     print("❌ .env 파일을 찾을 수 없거나 로드에 실패했습니다: $e");
   }
-
   runApp(const MyApp());
 }
 
@@ -40,7 +43,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ===== 로그인 페이지 =====
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -128,7 +130,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  if (_errorMsg.isNotEmpty) 
+                  if (_errorMsg.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Text(_errorMsg, style: const TextStyle(color: Colors.red, fontSize: 12)),
@@ -155,7 +157,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// ===== 메인 페이지 (탭 관리) =====
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
@@ -167,9 +168,7 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
   void _onTabChange(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
   }
 
   @override
@@ -198,7 +197,12 @@ class _MainPageState extends State<MainPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Color(0xFF94A3B8)),
-            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage())),
+            onPressed: () {
+              AppState.accessToken = null;
+              AppState.username = null;
+              AppState.nickname = null;
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+            },
           )
         ],
       ),

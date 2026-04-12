@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? "";
 final String url = "https://api.openweathermap.org/data/2.5/weather?q=Seoul&appid=$apiKey&units=metric";
 
-const String baseUrl = 'http://172.27.177.208:8000';
+const String baseUrl = 'http://172.27.18.197:8000';
 
 class ApiService {
 
@@ -174,7 +174,7 @@ class ApiService {
   // ===== 대화 로그 =====
   static Future<List<Map>> getChatLogs() async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/chat/'));
+      final res = await http.get(Uri.parse('$baseUrl/chat/?page=1&size=500'));
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
         final List data = decoded is List ? decoded : (decoded['items'] ?? []);

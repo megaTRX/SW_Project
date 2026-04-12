@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import '../data/api_service.dart';
 
 class SchedulePage extends StatefulWidget {
@@ -244,10 +245,7 @@ class _SchedCard extends StatelessWidget {
                 ),
                 child: Text(
                   isDone ? '완료 ✓' : '완료',
-                  style: TextStyle(
-                    color: isDone ? const Color(0xFF10B981) : Colors.white,
-                    fontSize: 12, fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(color: isDone ? const Color(0xFF10B981) : Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -263,10 +261,7 @@ class _SchedCard extends StatelessWidget {
                 ),
                 child: Text(
                   isCancelled ? '취소 ✓' : '취소',
-                  style: TextStyle(
-                    color: isCancelled ? const Color(0xFF6366F1) : const Color(0xFF94A3B8),
-                    fontSize: 12, fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(color: isCancelled ? const Color(0xFF6366F1) : const Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -292,10 +287,7 @@ class _SchedCard extends StatelessWidget {
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(20),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(20)),
               child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 16),
             ),
           ),
@@ -315,22 +307,105 @@ class _AddSchedCard extends StatefulWidget {
 
 class _AddSchedCardState extends State<_AddSchedCard> {
   final _titleController = TextEditingController();
-  final _timeController = TextEditingController();
   bool _expanded = false;
-  bool _isFuture = false;
   DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+  DateTime _selectedTime = DateTime.now();
+  bool _timeSelected = false;
 
   String _formatDateTime() {
-    if (_isFuture && _selectedDate != null && _selectedTime != null) {
+    final h = _selectedTime.hour.toString().padLeft(2, '0');
+    final m = _selectedTime.minute.toString().padLeft(2, '0');
+    if (_selectedDate != null) {
       final y = _selectedDate!.year;
       final mo = _selectedDate!.month.toString().padLeft(2, '0');
       final d = _selectedDate!.day.toString().padLeft(2, '0');
-      final h = _selectedTime!.hour.toString().padLeft(2, '0');
-      final mi = _selectedTime!.minute.toString().padLeft(2, '0');
-      return '$y-$mo-$d $h:$mi';
+      return '$y-$mo-$d $h:$m';
     }
-    return _timeController.text;
+    return '$h:$m';
+  }
+
+  Future<void> _showDatePicker() async {
+    DateTime tempDate = _selectedDate ?? DateTime.now();
+    await showCupertinoModalPopup(
+      context: context,
+      builder: (_) => Container(
+        height: 320,
+        color: Colors.white,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  child: const Text('취소', style: TextStyle(color: Color(0xFF94A3B8))),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Text('날짜 선택', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                CupertinoButton(
+                  child: const Text('확인', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w700)),
+                  onPressed: () {
+                    setState(() => _selectedDate = tempDate);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.date,
+                initialDateTime: _selectedDate ?? DateTime.now(),
+                minimumDate: DateTime.now().subtract(const Duration(days: 1)),
+                maximumDate: DateTime(2030),
+                onDateTimeChanged: (dt) => tempDate = dt,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showTimePicker() async {
+    DateTime tempTime = _selectedTime;
+    await showCupertinoModalPopup(
+      context: context,
+      builder: (_) => Container(
+        height: 320,
+        color: Colors.white,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  child: const Text('취소', style: TextStyle(color: Color(0xFF94A3B8))),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Text('시간 선택', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                CupertinoButton(
+                  child: const Text('확인', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w700)),
+                  onPressed: () {
+                    setState(() {
+                      _selectedTime = tempTime;
+                      _timeSelected = true;
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.time,
+                use24hFormat: true,
+                initialDateTime: _selectedTime,
+                onDateTimeChanged: (dt) => tempTime = dt,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -380,111 +455,71 @@ class _AddSchedCardState extends State<_AddSchedCard> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Text('예정 일정', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _showDatePicker,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF6366F1)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _selectedDate == null
+                                      ? '날짜 선택'
+                                      : '${_selectedDate!.year}년 ${_selectedDate!.month}월 ${_selectedDate!.day}일',
+                                  style: TextStyle(fontSize: 13, color: _selectedDate == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Switch(
-                        value: _isFuture,
-                        onChanged: (v) => setState(() {
-                          _isFuture = v;
-                          _selectedDate = null;
-                          _selectedTime = null;
-                          _timeController.clear();
-                        }),
-                        activeColor: const Color(0xFF6366F1),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _showTimePicker,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF6366F1)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _timeSelected
+                                      ? '${_selectedTime.hour.toString().padLeft(2, '0')}시 ${_selectedTime.minute.toString().padLeft(2, '0')}분'
+                                      : '시간 선택',
+                                  style: TextStyle(fontSize: 13, color: _timeSelected ? const Color(0xFF1E293B) : const Color(0xFF94A3B8)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  if (_isFuture) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () async {
-                              final d = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime(2030),
-                              );
-                              if (d != null) setState(() => _selectedDate = d);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF6366F1)),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _selectedDate == null ? '날짜 선택' : '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2,'0')}-${_selectedDate!.day.toString().padLeft(2,'0')}',
-                                    style: TextStyle(fontSize: 13, color: _selectedDate == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () async {
-                              final t = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                              if (t != null) setState(() => _selectedTime = t);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF6366F1)),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _selectedTime == null ? '시간 선택' : '${_selectedTime!.hour.toString().padLeft(2,'0')}:${_selectedTime!.minute.toString().padLeft(2,'0')}',
-                                    style: TextStyle(fontSize: 13, color: _selectedTime == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    TextField(
-                      controller: _timeController,
-                      decoration: InputDecoration(
-                        labelText: '시간 (예: 15:00)',
-                        prefixIcon: const Icon(Icons.access_time_rounded, color: Color(0xFF6366F1)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        final time = _formatDateTime();
-                        final valid = _isFuture
-                            ? (_selectedDate != null && _selectedTime != null && _titleController.text.isNotEmpty)
-                            : (_titleController.text.isNotEmpty && _timeController.text.isNotEmpty);
-                        if (valid) {
-                          widget.onAdd(_titleController.text, time);
+                        if (_titleController.text.isNotEmpty && _timeSelected) {
+                          widget.onAdd(_titleController.text, _formatDateTime());
                           _titleController.clear();
-                          _timeController.clear();
                           setState(() {
                             _expanded = false;
-                            _isFuture = false;
                             _selectedDate = null;
-                            _selectedTime = null;
+                            _selectedTime = DateTime.now();
+                            _timeSelected = false;
                           });
                         }
                       },
@@ -509,7 +544,6 @@ class _StatBadge extends StatelessWidget {
   final String label;
   final int count;
   final Color color;
-
   const _StatBadge({required this.label, required this.count, required this.color});
 
   @override

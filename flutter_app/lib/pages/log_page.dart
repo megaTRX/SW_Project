@@ -10,14 +10,11 @@ class LogPage extends StatefulWidget {
 }
 
 class _LogPageState extends State<LogPage> {
-  String _selectedCategory = '전체';
   final TextEditingController _searchController = TextEditingController();
   String _keyword = '';
   List<Map<String, dynamic>> _logs = [];
   bool _isLoading = true;
   Timer? _timer;
-
-  final List<String> _categories = ['전체', '생활정보', '복약', '일정', '긴급'];
 
   @override
   void initState() {
@@ -36,9 +33,7 @@ class _LogPageState extends State<LogPage> {
   }
 
   Future<void> _loadLogs({bool showLoading = true}) async {
-    if (showLoading && mounted) {
-      setState(() => _isLoading = true);
-    }
+    if (showLoading && mounted) setState(() => _isLoading = true);
     try {
       final data = await ApiService.getChatLogs();
       final List<Map<String, dynamic>> parsedLogs =
@@ -51,31 +46,39 @@ class _LogPageState extends State<LogPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('대화 내용을 불러오지 못했어요. 다시 시도해주세요.')),
-      );
     }
+  }
+
+  // 날짜별로 그룹핑
+  Map<String, List<Map<String, dynamic>>> _groupByDate(List<Map<String, dynamic>> logs) {
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (final log in logs) {
+      final time = (log["time"] ?? '').toString();
+      String dateKey = '날짜 없음';
+      if (time.length >= 10) {
+        final date = DateTime.tryParse(time);
+        if (date != null) {
+          dateKey = '${date.year}년 ${date.month}월 ${date.day}일';
+        } else {
+          dateKey = time.substring(0, 10);
+        }
+      }
+      grouped.putIfAbsent(dateKey, () => []);
+      grouped[dateKey]!.add(log);
+    }
+    return grouped;
   }
 
   @override
   Widget build(BuildContext context) {
     final filtered = _logs.where((l) {
-      final matchCategory = _selectedCategory == '전체' || l["type"] == _selectedCategory;
       final userText = (l["user"] ?? '').toString();
       final botText = (l["bot"] ?? '').toString();
-      final matchKeyword = _keyword.isEmpty ||
-          userText.contains(_keyword) ||
-          botText.contains(_keyword);
-      return matchCategory && matchKeyword;
+      return _keyword.isEmpty || userText.contains(_keyword) || botText.contains(_keyword);
     }).toList();
 
-    final Map<String, int> stats = {};
-    for (final l in _logs) {
-      final type = (l["type"] ?? '').toString();
-      if (type.isNotEmpty) {
-        stats[type] = (stats[type] ?? 0) + 1;
-      }
-    }
+    final grouped = _groupByDate(filtered);
+    final dateKeys = grouped.keys.toList();
 
     return RefreshIndicator(
       onRefresh: () => _loadLogs(showLoading: false),
@@ -85,6 +88,7 @@ class _LogPageState extends State<LogPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 헤더
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -122,21 +126,6 @@ class _LogPageState extends State<LogPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _StatChip(label: '생활정보', count: stats['생활정보'] ?? 0, color: const Color(0xFF3B82F6)),
-                        const SizedBox(width: 8),
-                        _StatChip(label: '복약', count: stats['복약'] ?? 0, color: const Color(0xFF10B981)),
-                        const SizedBox(width: 8),
-                        _StatChip(label: '일정', count: stats['일정'] ?? 0, color: const Color(0xFF8B5CF6)),
-                        const SizedBox(width: 8),
-                        _StatChip(label: '긴급', count: stats['긴급'] ?? 0, color: const Color(0xFFEF4444)),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -146,6 +135,7 @@ class _LogPageState extends State<LogPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 검색창
                   TextField(
                     controller: _searchController,
                     onChanged: (v) => setState(() => _keyword = v),
@@ -169,31 +159,8 @@ class _LogPageState extends State<LogPage> {
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2)),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _categories.map((cat) {
-                        final isSelected = _selectedCategory == cat;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedCategory = cat),
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF6366F1) : Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0)),
-                            ),
-                            child: Text(cat, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : const Color(0xFF64748B))),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
                   const SizedBox(height: 16),
-                  Text('${filtered.length}개의 대화', style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
-                  const SizedBox(height: 10),
+
                   if (_isLoading)
                     const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: Color(0xFF6366F1))))
                   else if (filtered.isEmpty)
@@ -210,7 +177,37 @@ class _LogPageState extends State<LogPage> {
                       ),
                     )
                   else
-                    ...filtered.map((l) => _ChatBubbleCard(log: l)),
+                    ...dateKeys.map((dateKey) {
+                      final dayLogs = grouped[dateKey]!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 날짜 헤더
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8, bottom: 10),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    dateKey,
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF6366F1)),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text('${dayLogs.length}개', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                              ],
+                            ),
+                          ),
+                          ...dayLogs.map((l) => _ChatBubbleCard(log: l)),
+                          const SizedBox(height: 8),
+                        ],
+                      );
+                    }),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -228,6 +225,11 @@ class _ChatBubbleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final type = (log["type"] ?? '').toString();
+    final time = (log["time"] ?? '').toString();
+    final user = (log["user"] ?? '').toString();
+    final bot = (log["bot"] ?? '').toString();
+
     final colors = {
       "생활정보": const Color(0xFF3B82F6),
       "복약": const Color(0xFF10B981),
@@ -241,16 +243,21 @@ class _ChatBubbleCard extends StatelessWidget {
       "긴급": const Color(0xFFFEF2F2),
     };
 
-    final type = (log["type"] ?? '').toString();
-    final time = (log["time"] ?? '').toString();
-    final user = (log["user"] ?? '').toString();
-    final bot = (log["bot"] ?? '').toString();
     final c = colors[type] ?? const Color(0xFF94A3B8);
     final bg = bgColors[type] ?? const Color(0xFFF8FAFC);
     final isEmergency = type == "긴급";
 
+    // 시간만 추출 (HH:mm)
+    String timeStr = time;
+    if (time.length >= 19) {
+      final dt = DateTime.tryParse(time);
+      if (dt != null) {
+        timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -264,15 +271,11 @@ class _ChatBubbleCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-                  child: Text(type, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c)),
-                ),
+                const SizedBox.shrink(),
                 const Spacer(),
                 const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFF94A3B8)),
                 const SizedBox(width: 4),
-                Flexible(child: Text(time, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
+                Text(timeStr, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
               ],
             ),
           ),
@@ -325,28 +328,6 @@ class _ChatBubbleCard extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final String label;
-  final int count;
-  final Color color;
-  const _StatChip({required this.label, required this.count, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-      child: Row(
-        children: [
-          Container(width: 6, height: 6, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
-          const SizedBox(width: 5),
-          Text('$label $count', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
         ],
       ),
     );

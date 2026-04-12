@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import '../data/api_service.dart';
 
 class MedPage extends StatefulWidget {
@@ -282,22 +283,103 @@ class _AddMedCardState extends State<_AddMedCard> {
   final _nameController = TextEditingController();
   bool _expanded = false;
   DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+  DateTime _selectedTime = DateTime.now();
+  bool _timeSelected = false;
 
   String _formatDateTime() {
-    if (_selectedDate != null && _selectedTime != null) {
+    final h = _selectedTime.hour.toString().padLeft(2, '0');
+    final m = _selectedTime.minute.toString().padLeft(2, '0');
+    if (_selectedDate != null) {
       final y = _selectedDate!.year;
       final mo = _selectedDate!.month.toString().padLeft(2, '0');
       final d = _selectedDate!.day.toString().padLeft(2, '0');
-      final h = _selectedTime!.hour.toString().padLeft(2, '0');
-      final mi = _selectedTime!.minute.toString().padLeft(2, '0');
-      return '$y-$mo-$d $h:$mi';
-    } else if (_selectedTime != null) {
-      final h = _selectedTime!.hour.toString().padLeft(2, '0');
-      final mi = _selectedTime!.minute.toString().padLeft(2, '0');
-      return '$h:$mi';
+      return '$y-$mo-$d $h:$m';
     }
-    return '';
+    return '$h:$m';
+  }
+
+  Future<void> _showDatePicker() async {
+    DateTime tempDate = _selectedDate ?? DateTime.now();
+    await showCupertinoModalPopup(
+      context: context,
+      builder: (_) => Container(
+        height: 320,
+        color: Colors.white,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  child: const Text('취소', style: TextStyle(color: Color(0xFF94A3B8))),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Text('날짜 선택', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                CupertinoButton(
+                  child: const Text('확인', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w700)),
+                  onPressed: () {
+                    setState(() => _selectedDate = tempDate);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.date,
+                initialDateTime: _selectedDate ?? DateTime.now(),
+                minimumDate: DateTime.now().subtract(const Duration(days: 1)),
+                maximumDate: DateTime(2030),
+                onDateTimeChanged: (dt) => tempDate = dt,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showTimePicker() async {
+    DateTime tempTime = _selectedTime;
+    await showCupertinoModalPopup(
+      context: context,
+      builder: (_) => Container(
+        height: 320,
+        color: Colors.white,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  child: const Text('취소', style: TextStyle(color: Color(0xFF94A3B8))),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Text('시간 선택', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                CupertinoButton(
+                  child: const Text('확인', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w700)),
+                  onPressed: () {
+                    setState(() {
+                      _selectedTime = tempTime;
+                      _timeSelected = true;
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.time,
+                use24hFormat: true,
+                initialDateTime: _selectedTime,
+                onDateTimeChanged: (dt) => tempTime = dt,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -318,18 +400,12 @@ class _AddMedCardState extends State<_AddMedCard> {
                 children: [
                   Container(
                     width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.add_rounded, color: Color(0xFF6366F1), size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text('새 복약 추가', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B))),
-                  ),
-                  Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                      color: const Color(0xFF94A3B8)),
+                  const Expanded(child: Text('새 복약 추가', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)))),
+                  Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: const Color(0xFF94A3B8)),
                 ],
               ),
             ),
@@ -359,15 +435,7 @@ class _AddMedCardState extends State<_AddMedCard> {
                     children: [
                       Expanded(
                         child: GestureDetector(
-                          onTap: () async {
-                            final d = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime(2030),
-                            );
-                            if (d != null) setState(() => _selectedDate = d);
-                          },
+                          onTap: _showDatePicker,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                             decoration: BoxDecoration(
@@ -381,11 +449,8 @@ class _AddMedCardState extends State<_AddMedCard> {
                                 Text(
                                   _selectedDate == null
                                       ? '날짜 선택'
-                                      : '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: _selectedDate == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
-                                  ),
+                                      : '${_selectedDate!.year}년 ${_selectedDate!.month}월 ${_selectedDate!.day}일',
+                                  style: TextStyle(fontSize: 13, color: _selectedDate == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B)),
                                 ),
                               ],
                             ),
@@ -395,13 +460,7 @@ class _AddMedCardState extends State<_AddMedCard> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () async {
-                            final t = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.now(),
-                            );
-                            if (t != null) setState(() => _selectedTime = t);
-                          },
+                          onTap: _showTimePicker,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                             decoration: BoxDecoration(
@@ -413,13 +472,10 @@ class _AddMedCardState extends State<_AddMedCard> {
                                 const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF6366F1)),
                                 const SizedBox(width: 8),
                                 Text(
-                                  _selectedTime == null
-                                      ? '시간 선택'
-                                      : '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: _selectedTime == null ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
-                                  ),
+                                  _timeSelected
+                                      ? '${_selectedTime.hour.toString().padLeft(2, '0')}시 ${_selectedTime.minute.toString().padLeft(2, '0')}분'
+                                      : '시간 선택',
+                                  style: TextStyle(fontSize: 13, color: _timeSelected ? const Color(0xFF1E293B) : const Color(0xFF94A3B8)),
                                 ),
                               ],
                             ),
@@ -434,14 +490,14 @@ class _AddMedCardState extends State<_AddMedCard> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        final time = _formatDateTime();
-                        if (_nameController.text.isNotEmpty && _selectedTime != null) {
-                          widget.onAdd(_nameController.text, time);
+                        if (_nameController.text.isNotEmpty && _timeSelected) {
+                          widget.onAdd(_nameController.text, _formatDateTime());
                           _nameController.clear();
                           setState(() {
                             _expanded = false;
                             _selectedDate = null;
-                            _selectedTime = null;
+                            _selectedTime = DateTime.now();
+                            _timeSelected = false;
                           });
                         }
                       },
