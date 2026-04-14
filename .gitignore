@@ -16,4 +16,7 @@ flutter_app/ios/Flutter/flutter_export_environment.sh
 flutter_app/ios/Runner/GeneratedPluginRegistrant.h
 flutter_app/ios/Runner/GeneratedPluginRegistrant.m
 flutter_app/macos/Flutter/ephemeral/
-flutter_app/pubspec.lock
+flutter_app/pubspec.lockflutter_app/ios/GoogleService-Info.plist
+flutter_app/ios/Runner/GoogleService-Info.plist
+flutter_app/ios/GoogleService-Info.plist
+flutter_app/ios/Runner/GoogleService-Info.plist
