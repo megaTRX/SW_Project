@@ -43,3 +43,11 @@ class Alert(Base):
     message = Column(String)
     is_resolved = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
+
+# 설정 테이블
+class Setting(Base):
+    __tablename__ = "settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, index=True)
+    value = Column(String)

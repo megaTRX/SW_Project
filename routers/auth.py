@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -6,16 +8,20 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import httpx
 
+load_dotenv()
+
 router = APIRouter()
 
-SECRET_KEY = "노인케어챗봇시크릿키2026"
+SECRET_KEY = os.getenv("SECRET_KEY", "노인케어챗봇시크릿키2026")
+KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID", "")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
-# pwd_context 아래에 있어야 해요!
 ADMIN_USERS = {
     "admin": {
         "username": "admin",
@@ -23,10 +29,6 @@ ADMIN_USERS = {
         "role": "admin"
     }
 }
-
-KAKAO_CLIENT_ID = "your_kakao_client_id"
-GOOGLE_CLIENT_ID = "your_google_client_id"
-GOOGLE_CLIENT_SECRET = "your_google_client_secret"
 
 class Token(BaseModel):
     access_token: str
@@ -92,7 +94,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         return {"username": username, "role": payload.get("role")}
     except JWTError:
         raise HTTPException(status_code=401, detail="토큰이 유효하지 않습니다")
-    
+
 class RegisterRequest(BaseModel):
     username: str
     password: str

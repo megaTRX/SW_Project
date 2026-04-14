@@ -1,0 +1,4 @@
+SECRET_KEY=노인케어챗봇시크릿키2026
+KAKAO_CLIENT_ID=3e8c26b9446b8cfbe5833f06c6e71dc6
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret

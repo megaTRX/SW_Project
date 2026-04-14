@@ -17,3 +17,7 @@ flutter_app/ios/Runner/GeneratedPluginRegistrant.h
 flutter_app/ios/Runner/GeneratedPluginRegistrant.m
 flutter_app/macos/Flutter/ephemeral/
 flutter_app/pubspec.lock
+.env
+secret.key
+chatbot.db
+

@@ -36,7 +36,18 @@ app.include_router(auth.router, prefix="/auth", tags=["인증"])
 async def root():
     return {"status": "ok", "message": "노인케어 챗봇 백엔드 실행중 🤖"}
 
+from routers import chat, medicine, schedule, alert, admin, auth, camera
+
+app.include_router(camera.router, prefix="/camera", tags=["카메라"])
+
 
 # source ~/myenv/bin/activate
 # cd ~/my_ai_project
 # python3 main.py
+
+
+# cd ~/chatbot-backend
+# source venv/bin/activate
+# uvicorn main:app --host 0.0.0.0 --port 8000
+
+# ipconfig getifaddr en0
