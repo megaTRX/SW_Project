@@ -68,6 +68,86 @@ async def register(req: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.refresh(user)
     return user
 
+    @router.post("/google/login", response_model=Token)
+async def google_login_only(request: SocialLoginRequest):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {request.access_token}"}
+        )
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="구글 인증 실패")
+    google_user = response.json()
+    user_id = google_user["sub"]
+    nickname = google_user.get("name", "사용자")
+    if f"google_{user_id}" not in [u.get("sub", "") for u in ADMIN_USERS.values()]:
+        raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다")
+    access_token = create_access_token({"sub": f"google_{user_id}", "nickname": nickname, "role": "user"})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/google/signup", response_model=Token)
+async def google_signup(request: SocialLoginRequest):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {request.access_token}"}
+        )
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="구글 인증 실패")
+    google_user = response.json()
+    user_id = google_user["sub"]
+    nickname = google_user.get("name", "사용자")
+    if f"google_{user_id}" in ADMIN_USERS:
+        raise HTTPException(status_code=409, detail="이미 가입된 계정입니다")
+    ADMIN_USERS[f"google_{user_id}"] = {
+        "username": f"google_{user_id}",
+        "hashed_password": "",
+        "role": "user",
+        "nickname": nickname
+    }
+    access_token = create_access_token({"sub": f"google_{user_id}", "nickname": nickname, "role": "user"})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/kakao/login", response_model=Token)
+async def kakao_login_only(request: SocialLoginRequest):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://kapi.kakao.com/v2/user/me",
+            headers={"Authorization": f"Bearer {request.access_token}"}
+        )
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="카카오 인증 실패")
+    kakao_user = response.json()
+    user_id = str(kakao_user["id"])
+    nickname = kakao_user.get("properties", {}).get("nickname", "사용자")
+    if f"kakao_{user_id}" not in ADMIN_USERS:
+        raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다")
+    access_token = create_access_token({"sub": f"kakao_{user_id}", "nickname": nickname, "role": "user"})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/kakao/signup", response_model=Token)
+async def kakao_signup(request: SocialLoginRequest):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://kapi.kakao.com/v2/user/me",
+            headers={"Authorization": f"Bearer {request.access_token}"}
+        )
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="카카오 인증 실패")
+    kakao_user = response.json()
+    user_id = str(kakao_user["id"])
+    nickname = kakao_user.get("properties", {}).get("nickname", "사용자")
+    if f"kakao_{user_id}" in ADMIN_USERS:
+        raise HTTPException(status_code=409, detail="이미 가입된 계정입니다")
+    ADMIN_USERS[f"kakao_{user_id}"] = {
+        "username": f"kakao_{user_id}",
+        "hashed_password": "",
+        "role": "user",
+        "nickname": nickname
+    }
+    access_token = create_access_token({"sub": f"kakao_{user_id}", "nickname": nickname, "role": "user"})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 # ===== 유저 목록 조회 (관리자용) =====
 @router.get("/users", response_model=list[UserResponse])

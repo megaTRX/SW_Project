@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../main.dart';
 
-const String _serverUrl = 'http://172.27.18.197:8000';
+const String _serverUrl = 'http://172.27.32.104:8000';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _idCtrl = TextEditingController();
   final _pwCtrl = TextEditingController();
   bool _loading = false;
-
   static const _blue = Color(0xFF5B8DEF);
   static const _purple = Color(0xFF6C63E0);
   static const _bg = Color(0xFFEEF2F7);
@@ -36,33 +37,215 @@ class _LoginScreenState extends State<LoginScreen> {
       ).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        // ✅ 토큰 & 유저 정보 저장
         AppState.accessToken = data['access_token'];
         AppState.username = id;
         if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('아이디 또는 비밀번호가 틀렸어요'), backgroundColor: Colors.red),
-        );
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('아이디 또는 비밀번호가 틀렸어요'), backgroundColor: Colors.red));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('서버에 연결할 수 없어요'), backgroundColor: Colors.red),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('서버에 연결할 수 없어요'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _onSocial(String provider) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$provider 로그인 준비 중'),
-        backgroundColor: _purple,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  void _showKakaoLoginTypeDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64, height: 64,
+                decoration: const BoxDecoration(color: Color(0xFFFEE500), shape: BoxShape.circle),
+                child: const Center(child: _KakaoLogo()),
+              ),
+              const SizedBox(height: 20),
+              const Text('카카오 계정으로 계속하기', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: Color(0xFF1A2233))),
+              const SizedBox(height: 8),
+              const Text('로그인 또는 회원가입을 선택해주세요', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)), textAlign: TextAlign.center),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton(
+                  onPressed: () { Navigator.pop(context); _proceedKakaoLogin(isSignup: false); },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6C63E0), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                  child: const Text('로그인', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: OutlinedButton(
+                  onPressed: () { Navigator.pop(context); _proceedKakaoLogin(isSignup: true); },
+                  style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF6C63E0), width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: const Text('회원가입', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF6C63E0))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)))),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  Future<void> _proceedKakaoLogin({required bool isSignup}) async {
+    try {
+      setState(() => _loading = true);
+      OAuthToken token;
+      if (await isKakaoTalkInstalled()) {
+        token = await UserApi.instance.loginWithKakaoTalk();
+      } else {
+        token = await UserApi.instance.loginWithKakaoAccount();
+      }
+      final endpoint = isSignup ? '/auth/kakao/signup' : '/auth/kakao/login';
+      final res = await http.post(
+        Uri.parse('$_serverUrl$endpoint'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'access_token': token.accessToken}),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (isSignup && data['needs_additional_info'] == true) {
+          if (mounted) {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => KakaoSignupAdditionalInfoScreen(kakaoToken: token.accessToken, tempUserId: data['temp_user_id']),
+            ));
+          }
+        } else {
+          AppState.accessToken = data['access_token'];
+          AppState.username = data['username'] ?? 'kakao_user';
+          if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
+        }
+      } else if (res.statusCode == 404 && !isSignup) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('계정을 찾을 수 없습니다. 회원가입을 진행해주세요'), backgroundColor: Colors.red));
+      } else if (res.statusCode == 409 && isSignup) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 가입된 계정입니다. 로그인을 진행해주세요'), backgroundColor: Colors.red));
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isSignup ? '회원가입 실패' : '로그인 실패'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      print('카카오 로그인 오류: $e');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('카카오 로그인 실패'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showGoogleLoginTypeDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64, height: 64,
+                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: const Color(0xFFDDE3EE), width: 1.5)),
+                child: const Center(child: _GoogleLogo()),
+              ),
+              const SizedBox(height: 20),
+              const Text('구글 계정으로 계속하기', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: Color(0xFF1A2233))),
+              const SizedBox(height: 8),
+              const Text('로그인 또는 회원가입을 선택해주세요', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)), textAlign: TextAlign.center),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton(
+                  onPressed: () { Navigator.pop(context); _proceedGoogleLogin(isSignup: false); },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6C63E0), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                  child: const Text('로그인', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: OutlinedButton(
+                  onPressed: () { Navigator.pop(context); _proceedGoogleLogin(isSignup: true); },
+                  style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF6C63E0), width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: const Text('회원가입', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF6C63E0))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _proceedGoogleLogin({required bool isSignup}) async {
+  try {
+    setState(() => _loading = true);
+    final GoogleSignIn googleSignIn = GoogleSignIn();
+    final GoogleSignInAccount? account = await googleSignIn.signIn();
+    if (account == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    final GoogleSignInAuthentication auth = await account.authentication;
+    final String? accessToken = auth.accessToken;
+    if (accessToken == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('구글 토큰을 가져올 수 없어요'), backgroundColor: Colors.red));
+      return;
+    }
+    final endpoint = isSignup ? '/auth/google/signup' : '/auth/google/login';
+    final res = await http.post(
+      Uri.parse('$_serverUrl$endpoint'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'access_token': accessToken}),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      if (isSignup && data['needs_additional_info'] == true) {
+        if (mounted) {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => GoogleSignupAdditionalInfoScreen(googleToken: accessToken, tempUserId: data['temp_user_id']),
+          ));
+        }
+      } else {
+        AppState.accessToken = data['access_token'];
+        AppState.username = data['username'] ?? 'google_user';
+        if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
+      }
+    } else if (res.statusCode == 404 && !isSignup) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('계정을 찾을 수 없습니다. 회원가입을 진행해주세요'), backgroundColor: Colors.red));
+    } else if (res.statusCode == 409 && isSignup) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 가입된 계정입니다. 로그인을 진행해주세요'), backgroundColor: Colors.red));
+    } else {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isSignup ? '회원가입 실패' : '로그인 실패'), backgroundColor: Colors.red));
+    }
+  } catch (e) {
+    print('구글 로그인 오류: $e');
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('구글 로그인 실패'), backgroundColor: Colors.red));
+  } finally {
+    if (mounted) setState(() => _loading = false);
+  }
+}
+
+  void _onSocial(String provider) async {
+    if (provider == '카카오') {
+      _showKakaoLoginTypeDialog();
+    } else if (provider == '구글') {
+      _showGoogleLoginTypeDialog();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$provider 로그인 준비 중'), backgroundColor: _purple, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      );
+    }
   }
 
   @override
@@ -96,11 +279,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: _loading ? null : _onLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _purple,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: _purple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
                   child: _loading
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Text('로그인', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 1)),
@@ -111,10 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 52,
                 child: OutlinedButton(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF6C63E0), width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
+                  style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF6C63E0), width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                   child: const Text('회원가입', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF6C63E0), letterSpacing: 1)),
                 ),
               ),
@@ -158,7 +334,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _pwVisible = false;
   bool _pwConfirmVisible = false;
   String _pwStrength = '';
-
   static const _purple = Color(0xFF6C63E0);
   static const _bg = Color(0xFFEEF2F7);
 
@@ -192,48 +367,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final pw = _pwCtrl.text.trim();
     final pwConfirm = _pwConfirmCtrl.text.trim();
     final nickname = _nicknameCtrl.text.trim();
-
     if (id.isEmpty || pw.isEmpty || pwConfirm.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('필수 항목을 모두 입력해주세요')));
       return;
     }
     if (pw != pwConfirm) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('비밀번호가 일치하지 않아요'), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('비밀번호가 일치하지 않아요'), backgroundColor: Colors.red));
       return;
     }
-
     setState(() => _loading = true);
     try {
       final res = await http.post(
         Uri.parse('$_serverUrl/auth/register'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': id,
-          'password': pw,
-          'nickname': nickname.isEmpty ? id : nickname,
-          'role': 'user',
-        }),
+        body: jsonEncode({'username': id, 'password': pw, 'nickname': nickname.isEmpty ? id : nickname, 'role': 'user'}),
       ).timeout(const Duration(seconds: 5));
-
       if (res.statusCode == 200 || res.statusCode == 201) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('회원가입 완료! 로그인해주세요'), backgroundColor: Colors.green),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('회원가입 완료! 로그인해주세요'), backgroundColor: Colors.green));
           Navigator.of(context).pop();
         }
       } else {
         final body = jsonDecode(res.body);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(body['detail'] ?? '회원가입 실패'), backgroundColor: Colors.red),
-        );
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(body['detail'] ?? '회원가입 실패'), backgroundColor: Colors.red));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('서버에 연결할 수 없어요'), backgroundColor: Colors.red),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('서버에 연결할 수 없어요'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -252,19 +411,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
                 decoration: const BoxDecoration(
                   color: Color(0xFF6C63E0),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(32),
-                    bottomRight: Radius.circular(32),
-                  ),
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(32), bottomRight: Radius.circular(32)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                      padding: EdgeInsets.zero,
-                    ),
+                    IconButton(icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white), onPressed: () => Navigator.of(context).pop(), padding: EdgeInsets.zero),
                     const SizedBox(height: 16),
                     const Text('새 계정 만들기', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 6),
@@ -292,7 +444,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       obscureText: !_pwVisible,
                       onChanged: (v) => setState(() => _pwStrength = _checkPwStrength(v)),
                       style: const TextStyle(fontSize: 15, color: Color(0xFF1A2233)),
-                      decoration: _inputDeco(hint: '비밀번호를 입력하세요', icon: Icons.lock_outline_rounded,
+                      decoration: _inputDeco(
+                        hint: '비밀번호를 입력하세요',
+                        icon: Icons.lock_outline_rounded,
                         suffix: IconButton(
                           icon: Icon(_pwVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF94A3B8), size: 20),
                           onPressed: () => setState(() => _pwVisible = !_pwVisible),
@@ -319,7 +473,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _pwConfirmCtrl,
                       obscureText: !_pwConfirmVisible,
                       style: const TextStyle(fontSize: 15, color: Color(0xFF1A2233)),
-                      decoration: _inputDeco(hint: '비밀번호를 다시 입력하세요', icon: Icons.lock_outline_rounded,
+                      decoration: _inputDeco(
+                        hint: '비밀번호를 다시 입력하세요',
+                        icon: Icons.lock_outline_rounded,
                         suffix: IconButton(
                           icon: Icon(_pwConfirmVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF94A3B8), size: 20),
                           onPressed: () => setState(() => _pwConfirmVisible = !_pwConfirmVisible),
@@ -362,17 +518,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _SectionLabel(String text, {bool required = false}) {
-    return Row(children: [
-      Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF3D4561))),
-      if (required) const Text(' *', style: TextStyle(fontSize: 14, color: Color(0xFFEF4444), fontWeight: FontWeight.w700)),
-    ]);
+    return Row(
+      children: [
+        Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF3D4561))),
+        if (required) const Text(' *', style: TextStyle(fontSize: 14, color: Color(0xFFEF4444), fontWeight: FontWeight.w700)),
+      ],
+    );
   }
 
   InputDecoration _inputDeco({required String hint, required IconData icon, Widget? suffix}) {
     return InputDecoration(
-      hintText: hint, hintStyle: const TextStyle(color: Color(0xFFC0C8D8), fontSize: 14),
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFC0C8D8), fontSize: 14),
       prefixIcon: Icon(icon, color: const Color(0xFF6C63E0), size: 20),
-      suffixIcon: suffix, filled: true, fillColor: Colors.white,
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDDE3EE), width: 1.5)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDDE3EE), width: 1.5)),
@@ -381,14 +542,261 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 }
 
-// ── 공통 위젯 ──
+// ── 카카오 회원가입 추가 정보 입력 화면 ──
+class KakaoSignupAdditionalInfoScreen extends StatefulWidget {
+  final String kakaoToken;
+  final String tempUserId;
+  const KakaoSignupAdditionalInfoScreen({super.key, required this.kakaoToken, required this.tempUserId});
+  @override
+  State<KakaoSignupAdditionalInfoScreen> createState() => _KakaoSignupAdditionalInfoScreenState();
+}
+
+class _KakaoSignupAdditionalInfoScreenState extends State<KakaoSignupAdditionalInfoScreen> {
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  String? _selectedRole;
+  bool _loading = false;
+  static const _purple = Color(0xFF6C63E0);
+  static const _bg = Color(0xFFEEF2F7);
+
+  Future<void> _completeSignup() async {
+    final name = _nameCtrl.text.trim();
+    final phone = _phoneCtrl.text.trim();
+    if (name.isEmpty || phone.isEmpty || _selectedRole == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('모든 항목을 입력해주세요')));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final res = await http.post(
+        Uri.parse('$_serverUrl/auth/kakao/complete-signup'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'temp_user_id': widget.tempUserId, 'name': name, 'phone': phone, 'role': _selectedRole}),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        AppState.accessToken = data['access_token'];
+        AppState.username = data['username'] ?? name;
+        if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const MainPage()), (route) => false);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('회원가입 완료 실패'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('서버 연결 실패'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                decoration: const BoxDecoration(color: Color(0xFF6C63E0), borderRadius: BorderRadius.only(bottomLeft: Radius.circular(32), bottomRight: Radius.circular(32))),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    IconButton(icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white), onPressed: () => Navigator.of(context).pop(), padding: EdgeInsets.zero),
+                    const SizedBox(height: 16),
+                    const Text('환영합니다! 👋', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 6),
+                    const Text('서비스 이용을 위해 추가 정보를 입력해주세요', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const _Label('이름'),
+                    const SizedBox(height: 8),
+                    TextField(controller: _nameCtrl, style: const TextStyle(fontSize: 15, color: Color(0xFF1A2233)), decoration: _inputDeco(hint: '실명을 입력해주세요', icon: Icons.person_outline_rounded)),
+                    const SizedBox(height: 20),
+                    const _Label('전화번호'),
+                    const SizedBox(height: 8),
+                    TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, style: const TextStyle(fontSize: 15, color: Color(0xFF1A2233)), decoration: _inputDeco(hint: '010-1234-5678', icon: Icons.phone_outlined)),
+                    const SizedBox(height: 20),
+                    const _Label('직책'),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFDDE3EE), width: 1.5)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedRole,
+                          hint: const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('직책을 선택하세요', style: TextStyle(color: Color(0xFFC0C8D8), fontSize: 14))),
+                          isExpanded: true,
+                          icon: const Padding(padding: EdgeInsets.only(right: 12), child: Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8))),
+                          items: ['간호사', '의사', '관리자', '기타'].map((role) => DropdownMenuItem(value: role, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(role)))).toList(),
+                          onChanged: (value) => setState(() => _selectedRole = value),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _completeSignup,
+                        style: ElevatedButton.styleFrom(backgroundColor: _purple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+                        child: _loading
+                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                Text('가입 완료', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 1)),
+                                SizedBox(width: 8),
+                                Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                              ]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDeco({required String hint, required IconData icon}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFC0C8D8), fontSize: 14),
+      prefixIcon: Icon(icon, color: const Color(0xFF6C63E0), size: 20),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDDE3EE), width: 1.5)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDDE3EE), width: 1.5)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF6C63E0), width: 2)),
+    );
+  }
+}
+
+// ── 구글 회원가입 추가 정보 입력 화면 ──
+class GoogleSignupAdditionalInfoScreen extends StatefulWidget {
+  final String googleToken;
+  final String tempUserId;
+  const GoogleSignupAdditionalInfoScreen({super.key, required this.googleToken, required this.tempUserId});
+  @override
+  State<GoogleSignupAdditionalInfoScreen> createState() => _GoogleSignupAdditionalInfoScreenState();
+}
+
+class _GoogleSignupAdditionalInfoScreenState extends State<GoogleSignupAdditionalInfoScreen> {
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  String? _selectedRole;
+  bool _loading = false;
+  static const _purple = Color(0xFF6C63E0);
+  static const _bg = Color(0xFFEEF2F7);
+
+  Future<void> _completeSignup() async {
+    final name = _nameCtrl.text.trim();
+    final phone = _phoneCtrl.text.trim();
+    if (name.isEmpty || phone.isEmpty || _selectedRole == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('모든 항목을 입력해주세요')));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final res = await http.post(
+        Uri.parse('$_serverUrl/auth/google/complete-signup'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'temp_user_id': widget.tempUserId, 'name': name, 'phone': phone, 'role': _selectedRole}),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        AppState.accessToken = data['access_token'];
+        AppState.username = data['username'] ?? name;
+        if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const MainPage()), (route) => false);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('회원가입 완료 실패'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('서버 연결 실패'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(backgroundColor: _purple, foregroundColor: Colors.white, title: const Text('추가 정보 입력'), elevation: 0),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _Label('이름'),
+            const SizedBox(height: 8),
+            TextField(controller: _nameCtrl, decoration: _inputDeco(hint: '실명을 입력해주세요', icon: Icons.person_outline_rounded)),
+            const SizedBox(height: 20),
+            const _Label('전화번호'),
+            const SizedBox(height: 8),
+            TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, decoration: _inputDeco(hint: '010-1234-5678', icon: Icons.phone_outlined)),
+            const SizedBox(height: 20),
+            const _Label('직책'),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFDDE3EE), width: 1.5)),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedRole,
+                  hint: const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('직책을 선택하세요', style: TextStyle(color: Color(0xFFC0C8D8), fontSize: 14))),
+                  isExpanded: true,
+                  icon: const Padding(padding: EdgeInsets.only(right: 12), child: Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8))),
+                  items: ['간호사', '의사', '관리자', '기타'].map((role) => DropdownMenuItem(value: role, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(role)))).toList(),
+                  onChanged: (value) => setState(() => _selectedRole = value),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _completeSignup,
+                style: ElevatedButton.styleFrom(backgroundColor: _purple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                child: _loading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('가입 완료', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDeco({required String hint, required IconData icon}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFC0C8D8), fontSize: 14),
+      prefixIcon: Icon(icon, color: const Color(0xFF6C63E0), size: 20),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDDE3EE), width: 1.5)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDDE3EE), width: 1.5)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF6C63E0), width: 2)),
+    );
+  }
+}
+
+// ── UI 컴포넌트들 ──
 class _CircleSocialBtn extends StatelessWidget {
   final Color color;
   final Widget logo;
   final bool border;
   final VoidCallback onTap;
   const _CircleSocialBtn({required this.color, required this.logo, required this.onTap, this.border = false});
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -435,7 +843,8 @@ class _GoogleLogo extends StatelessWidget {
     return ShaderMask(
       shaderCallback: (bounds) => const LinearGradient(
         colors: [Color(0xFF4285F4), Color(0xFF34A853), Color(0xFFFBBC04), Color(0xFFEA4335)],
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ).createShader(bounds),
       child: const Text('G', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
     );
@@ -456,11 +865,14 @@ class _Input extends StatelessWidget {
   const _Input({required this.hint, required this.ctrl, this.obscure = false});
   @override
   Widget build(BuildContext context) => TextField(
-    controller: ctrl, obscureText: obscure,
+    controller: ctrl,
+    obscureText: obscure,
     style: const TextStyle(fontSize: 15, color: Color(0xFF1A2233)),
     decoration: InputDecoration(
-      hintText: hint, hintStyle: const TextStyle(color: Color(0xFFC0C8D8)),
-      filled: true, fillColor: Colors.white,
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFC0C8D8)),
+      filled: true,
+      fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDDE3EE), width: 1.5)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDDE3EE), width: 1.5)),

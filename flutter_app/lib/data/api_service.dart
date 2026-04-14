@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? "";
 final String url = "https://api.openweathermap.org/data/2.5/weather?q=Seoul&appid=$apiKey&units=metric";
 
-const String baseUrl = 'http://172.27.18.197:8000';
+const String baseUrl = 'http://172.27.32.104:8000';
 
 class ApiService {
 
@@ -21,7 +21,7 @@ class ApiService {
     }
     return '생활정보';
   }
-
+  
   // ===== 복약 =====
   static Future<List<Map>> getMedications() async {
     try {

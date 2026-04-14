@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/med_page.dart';
 import 'pages/schedule_page.dart';
@@ -7,6 +9,7 @@ import 'pages/camera_page.dart';
 import 'pages/settings_page.dart';
 import 'screens/splash_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart'; 
 
 // ── 전역 토큰 저장소 ──
 class AppState {
@@ -17,12 +20,9 @@ class AppState {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await dotenv.load(fileName: ".env");
-    print("✅ 환경 변수 로드 성공!");
-  } catch (e) {
-    print("❌ .env 파일을 찾을 수 없거나 로드에 실패했습니다: $e");
-  }
+  await Firebase.initializeApp();  
+  KakaoSdk.init(nativeAppKey: '9df1ac4ab4e378579ff3920c81a502d3');
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 
@@ -34,9 +34,20 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'OASIS',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('ko', 'KR'),
+      supportedLocales: const [
+        Locale('ko', 'KR'),
+        Locale('en', 'US'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6366F1)),
         useMaterial3: true,
+        fontFamily: 'SF Pro',
       ),
       home: const SplashScreen(),
     );
@@ -60,10 +71,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
     Future.delayed(const Duration(milliseconds: 800), () {
       if (_idController.text == 'admin' && _pwController.text == '1234') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainPage()),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainPage()));
       } else {
         setState(() {
           _errorMsg = '아이디 또는 비밀번호가 올바르지 않습니다.';
@@ -88,62 +96,30 @@ class _LoginPageState extends State<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFF4FC3F7), Color(0xFF6366F1)],
-                    ).createShader(bounds),
+                    shaderCallback: (bounds) => const LinearGradient(colors: [Color(0xFF4FC3F7), Color(0xFF6366F1)]).createShader(bounds),
                     child: const Icon(Icons.health_and_safety_rounded, size: 64, color: Colors.white),
                   ),
                   const SizedBox(height: 6),
                   ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFF4FC3F7), Color(0xFF6366F1)],
-                    ).createShader(bounds),
-                    child: const Text(
-                      'OASIS',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2),
-                    ),
+                    shaderCallback: (bounds) => const LinearGradient(colors: [Color(0xFF4FC3F7), Color(0xFF6366F1)]).createShader(bounds),
+                    child: const Text('OASIS', textAlign: TextAlign.center, style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
                   ),
                   const SizedBox(height: 48),
                   const Text('아이디', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _idController,
-                    decoration: InputDecoration(
-                      hintText: 'admin',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    ),
-                  ),
+                  TextField(controller: _idController, decoration: InputDecoration(hintText: 'admin', filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))))),
                   const SizedBox(height: 16),
                   const Text('비밀번호', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _pwController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      hintText: '••••••••',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    ),
-                  ),
+                  TextField(controller: _pwController, obscureText: true, decoration: InputDecoration(hintText: '••••••••', filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))))),
                   const SizedBox(height: 24),
                   if (_errorMsg.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(_errorMsg, style: const TextStyle(color: Colors.red, fontSize: 12)),
-                    ),
+                    Padding(padding: const EdgeInsets.only(bottom: 16), child: Text(_errorMsg, style: const TextStyle(color: Colors.red, fontSize: 12))),
                   SizedBox(
                     height: 52,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _login,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                       child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('로그인'),
                     ),
                   ),
@@ -167,9 +143,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
-  void _onTabChange(int index) {
-    setState(() => _selectedIndex = index);
-  }
+  void _onTabChange(int index) => setState(() => _selectedIndex = index);
 
   @override
   Widget build(BuildContext context) {
@@ -189,9 +163,7 @@ class _MainPageState extends State<MainPage> {
         elevation: 0,
         centerTitle: true,
         title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFF4FC3F7), Color(0xFF6366F1)],
-          ).createShader(bounds),
+          shaderCallback: (bounds) => const LinearGradient(colors: [Color(0xFF4FC3F7), Color(0xFF6366F1)]).createShader(bounds),
           child: const Text('OASIS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.white)),
         ),
         actions: [
