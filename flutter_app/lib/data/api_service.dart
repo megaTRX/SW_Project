@@ -244,4 +244,24 @@ class ApiService {
       return false;
     }
   }
+
+  // ===== 미해결 알림만 조회 =====
+  static Future<List<Map>> getUnresolvedAlerts() async {
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/alert/unresolved'));
+      if (res.statusCode == 200) {
+        final List data = jsonDecode(res.body);
+        return data.map((e) => {
+          "time": e["created_at"] ?? '',
+          "content": e["message"] ?? '',
+          "status": "처리 중",
+          "type": e["type"] ?? '',
+          "id": e["id"],
+        }).toList();
+      }
+    } catch (e) {
+      print('미해결 알림 조회 오류: $e');
+    }
+    return [];
+  }
 }
