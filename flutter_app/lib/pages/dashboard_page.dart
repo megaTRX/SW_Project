@@ -143,7 +143,8 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final greeting = now.hour < 12 ? '좋은 아침이에요 ☀️' : now.hour < 18 ? '좋은 오후예요 🌤' : '좋은 저녁이에요 🌙';
-    final emergencyAlerts = _alerts.where((a) => a['type'] == '긴급' || a['type'] == '비활동').toList();
+    final emergencyAlerts = _alerts.where((a) =>
+        a['type'] == '긴급' || a['type'] == '비활동' || a['type'] == '가스').toList();
     final medRemaining = _meds.where((m) => m['taken'] == false || m['taken'] == 0).length;
     final medTaken = _meds.where((m) => m['taken'] == true || m['taken'] == 1).length;
     final medTotal = _meds.length;
@@ -246,6 +247,53 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // ── 센서 현황 위젯 ──────────────────────────────────────
+                const Text('🔍 센서 현황',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A))),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => widget.onTabChange(4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+                    ),
+                    child: Row(children: [
+                      _SensorStatus(
+                        label: '비활동',
+                        icon: Icons.accessibility_new_rounded,
+                        isAlert: _alerts.any((a) => a['type'] == '비활동'),
+                        alertColor: const Color(0xFFEF4444),
+                      ),
+                      _SensorDivider(),
+                      _SensorStatus(
+                        label: '가스',
+                        icon: Icons.local_fire_department_rounded,
+                        isAlert: _alerts.any((a) => a['type'] == '가스'),
+                        alertColor: const Color(0xFFF97316),
+                      ),
+                      _SensorDivider(),
+                      _SensorStatus(
+                        label: '낙상',
+                        icon: Icons.personal_injury_rounded,
+                        isAlert: false,
+                        alertColor: const Color(0xFFEF4444),
+                      ),
+                      _SensorDivider(),
+                      _SensorStatus(
+                        label: '재난',
+                        icon: Icons.security_rounded,
+                        isAlert: false,
+                        alertColor: const Color(0xFFEF4444),
+                      ),
+                    ]),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -382,6 +430,46 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
   }
+}
+
+class _SensorStatus extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isAlert;
+  final Color alertColor;
+
+  const _SensorStatus({required this.label, required this.icon,
+      required this.isAlert, required this.alertColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: isAlert ? alertColor.withOpacity(0.1) : const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18,
+              color: isAlert ? alertColor : const Color(0xFF10B981)),
+        ),
+        const SizedBox(height: 6),
+        Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+        const SizedBox(height: 2),
+        Text(isAlert ? '감지됨' : '정상',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                color: isAlert ? alertColor : const Color(0xFF10B981))),
+      ]),
+    );
+  }
+}
+
+class _SensorDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 40, color: const Color(0xFFE2E8F0),
+          margin: const EdgeInsets.symmetric(horizontal: 4));
 }
 
 class _MetricCard extends StatelessWidget {
