@@ -9,7 +9,7 @@ import 'pages/camera_page.dart';
 import 'pages/settings_page.dart';
 import 'screens/splash_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:firebase_core/firebase_core.dart'; 
+import 'package:firebase_core/firebase_core.dart';
 
 // ── 전역 토큰 저장소 ──
 class AppState {
@@ -20,7 +20,7 @@ class AppState {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();  
+  await Firebase.initializeApp();
   KakaoSdk.init(nativeAppKey: '9df1ac4ab4e378579ff3920c81a502d3');
   await dotenv.load(fileName: ".env");
   runApp(const MyApp());

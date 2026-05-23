@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../data/api_service.dart';
 
-const String _streamUrl = 'http://172.27.242.64:5000/video';
+const String _streamUrl = 'http://172.27.153.11:8000/video';
 const int _refreshInterval = 30;
 
 class CameraPage extends StatefulWidget {

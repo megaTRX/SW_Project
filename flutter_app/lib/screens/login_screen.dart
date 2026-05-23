@@ -5,7 +5,7 @@ import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../main.dart';
 
-const String _serverUrl = 'http://172.27.32.104:8000';
+const String _serverUrl = 'http://172.27.153.11:8000';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

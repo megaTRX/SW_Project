@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OASIS — 시니어 케어 앱</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  /* ─────────────────────────────────────────
+     DESIGN TOKENS  (Toss + Samsung Health 영감)
+     ───────────────────────────────────────── */
+  :root{
+    --bg: #F7F8FA;
+    --surface: #FFFFFF;
+    --surface-2: #F2F4F6;
+    --line: #EAECEF;
+    --line-strong: #D1D6DB;
+
+    --text-1: #191F28;
+    --text-2: #4E5968;
+    --text-3: #8B95A1;
+    --text-4: #B0B8C1;
+
+    --brand: #3182F6;
+    --brand-soft: #E8F2FE;
+    --brand-pressed: #1B64DA;
+
+    --danger: #F04452;
+    --danger-soft: #FDECEE;
+    --warning: #FF8A00;
+    --warning-soft: #FFF3E5;
+    --success: #00B96B;
+    --success-soft: #E5F8EF;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.02);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.08);
+
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 20px;
+    --r-2xl: 24px;
+    --r-full: 9999px;
+
+    --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+  }
+
+  *,*::before,*::after{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: #E5E8EB;
+    font-family: var(--font);
+    color: var(--text-1);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  button{ font-family: inherit; cursor: pointer; border:none; background:none; padding:0; color:inherit; }
+
+  .phone{
+    width: 390px;
+    height: 844px;
+    background: var(--bg);
+    border-radius: 48px;
+    border: 10px solid #1A1F25;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.12);
+    display: flex;
+    flex-direction: column;
+  }
+  .notch{
+    position: absolute;
+    top: 8px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #1A1F25;
+    border-radius: 0 0 18px 18px;
+    z-index: 100;
+  }
+
+  .statusbar{
+    height: 44px;
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-1);
+    flex-shrink: 0;
+  }
+  .statusbar .right{ display:flex; gap:6px; align-items:center; }
+
+  .pages{
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+  .page{
+    position: absolute; inset: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bg);
+    display: none;
+    scroll-behavior: smooth;
+  }
+  .page.active{ display: block; }
+  .page::-webkit-scrollbar{ display:none; }
+  .page{ -ms-overflow-style: none; scrollbar-width: none; }
+
+  .topbar{
+    background: var(--surface);
+    padding: 12px 20px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top:0; z-index: 10;
+  }
+  .topbar h1{
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    margin:0;
+  }
+  .topbar .icon-btn{
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    border-radius: var(--r-full);
+    color: var(--text-2);
+    position: relative;
+  }
+  .topbar .icon-btn:hover{ background: var(--surface-2); }
+  .topbar .icon-btn .dot{
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 8px; height: 8px;
+    border-radius: var(--r-full);
+    background: var(--danger);
+    border: 2px solid var(--surface);
+  }
+
+  .section{ padding: 16px 20px; }
+  .section-title{
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-3);
+    margin: 0 0 12px;
+    letter-spacing: -0.2px;
+  }
+  .section-head{
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .section-head h2{
+    font-size: 18px; font-weight: 800; margin:0;
+    letter-spacing: -0.3px;
+  }
+  .section-head .more{
+    font-size: 14px; color: var(--text-3); font-weight: 600;
+  }
+
+  .card{
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .hero{
+    padding: 8px 20px 16px;
+    background: var(--surface);
+  }
+  .hero .greet{
+    font-size: 14px; color: var(--text-3); font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .hero .name{
+    font-size: 26px; font-weight: 800; letter-spacing: -0.6px;
+    margin-bottom: 14px;
+  }
+  .hero .name span{ color: var(--brand); }
+
+  .status-banner{
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--r-lg);
+    background: var(--success-soft);
+    color: #0E8C50;
+    font-size: 15px; font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  .status-banner.danger{ background: var(--danger-soft); color: var(--danger); }
+  .status-banner.warning{ background: var(--warning-soft); color: var(--warning); }
+  .status-banner .icon{
+    width: 32px; height: 32px;
+    border-radius: var(--r-full);
+    display: grid; place-items: center;
+    background: rgba(255,255,255,0.7);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .status-banner .meta{ margin-left: auto; font-size: 13px; font-weight: 600; opacity: 0.8; }
+
+  .vital-grid{
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .vital{
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+  }
+  .vital .label{
+    display:flex; align-items:center; gap:6px;
+    font-size: 13px; font-weight: 700; color: var(--text-3);
+    margin-bottom: 8px;
+  }
+  .vital .value{
+    font-size: 26px; font-weight: 800; letter-spacing: -0.6px;
+    color: var(--text-1);
+    display:flex; align-items: baseline; gap: 4px;
+  }
+  .vital .value .unit{ font-size: 14px; font-weight: 600; color: var(--text-3); }
+  .vital .trend{
+    margin-top: 6px;
+    font-size: 12px; font-weight: 600;
+    color: var(--success);
+  }
+  .vital .trend.down{ color: var(--danger); }
+
+  .action-grid{
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 16px 4px;
+    box-shadow: var(--shadow-sm);
+  }
+  .action{
+    display:flex; flex-direction: column; align-items:center; gap:6px;
+    padding: 8px 0;
+    border-radius: var(--r-md);
+  }
+  .action:active{ background: var(--surface-2); }
+  .action .ic{
+    width: 44px; height: 44px;
+    border-radius: var(--r-lg);
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid; place-items: center;
+    font-size: 20px;
+  }
+  .action .ic.warn{ background: var(--warning-soft); color: var(--warning); }
+  .action .ic.dan{ background: var(--danger-soft); color: var(--danger); }
+  .action .ic.suc{ background: var(--success-soft); color: var(--success); }
+  .action .lab{
+    font-size: 13px; font-weight: 700; color: var(--text-2);
+    letter-spacing: -0.2px;
+  }
+
+  .med-card{
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 18px 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .med-row{
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .med-row .title{ font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+  .med-row .count{ font-size: 14px; font-weight: 700; color: var(--brand); }
+  .med-progress{
+    height: 8px;
+    background: var(--surface-2);
+    border-radius: var(--r-full);
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .med-progress .bar{
+    height: 100%;
+    background: linear-gradient(90deg, #3182F6, #5BA0FF);
+    border-radius: var(--r-full);
+  }
+  .next-med{
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+  }
+  .next-med .pill{
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+  .next-med .info{ flex:1; }
+  .next-med .info .n{ font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
+  .next-med .info .t{ font-size: 13px; color: var(--text-3); font-weight: 600; margin-top: 2px; }
+  .next-med .btn-take{
+    padding: 8px 14px; border-radius: var(--r-md);
+    background: var(--brand);
+    color: #fff; font-size: 13px; font-weight: 700;
+  }
+
+  .sensor-card{
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .sensor-grid{
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .sensor-item{
+    padding: 14px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sensor-item .ic{
+    width: 40px; height: 40px;
+    border-radius: var(--r-full);
+    background: var(--success-soft);
+    color: var(--success);
+    display:grid; place-items:center; font-size: 18px;
+  }
+  .sensor-item.alert .ic{ background: var(--danger-soft); color: var(--danger); }
+  .sensor-item .text .name{ font-size: 13px; color: var(--text-3); font-weight: 700; }
+  .sensor-item .text .st{ font-size: 14px; font-weight: 700; color: var(--success); margin-top: 2px; }
+  .sensor-item.alert .text .st{ color: var(--danger); }
+
+  .weather{
+    background: linear-gradient(135deg, #4A90E2 0%, #6FB1FC 100%);
+    border-radius: var(--r-xl);
+    padding: 20px;
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(74,144,226,0.25);
+  }
+  .weather .city{ font-size: 14px; opacity: 0.85; font-weight: 600; }
+  .weather .temp{ font-size: 40px; font-weight: 800; letter-spacing: -1px; margin: 4px 0; }
+  .weather .desc{ font-size: 14px; opacity: 0.9; font-weight: 600; }
+  .weather .note{
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.18);
+    border-radius: var(--r-md);
+    font-size: 13px; font-weight: 600;
+  }
+
+  .cam-frame{
+    background: #000;
+    border-radius: var(--r-xl);
+    aspect-ratio: 4/3;
+    position: relative;
+    overflow: hidden;
+    display: grid; place-items: center;
+    box-shadow: var(--shadow-md);
+  }
+  .cam-frame .placeholder{
+    color: rgba(255,255,255,0.45);
+    font-size: 14px;
+    text-align: center;
+    font-weight: 600;
+  }
+  .cam-frame .placeholder .big{ font-size: 36px; margin-bottom: 8px; opacity: 0.7; }
+  .live-pill{
+    position: absolute; top: 12px; left: 12px;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    border-radius: var(--r-full);
+    color: #fff;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .live-dot{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #FF3B30;
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse{ 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:.4; transform:scale(1.15);} }
+  .live-info{
+    position: absolute; bottom: 12px; left: 12px; right: 12px;
+    display: flex; align-items:center; justify-content: space-between;
+    color: rgba(255,255,255,0.85);
+    font-size: 12px; font-weight: 600;
+  }
+
+  .stat-row{
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-top: 16px;
+  }
+  .stat-mini{
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    padding: 14px 12px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-mini .l{ font-size: 12px; color: var(--text-3); font-weight: 700; }
+  .stat-mini .v{ font-size: 20px; font-weight: 800; margin-top: 4px; letter-spacing: -0.4px; }
+  .stat-mini.danger .v{ color: var(--danger); }
+  .stat-mini.warning .v{ color: var(--warning); }
+  .stat-mini.success .v{ color: var(--success); }
+
+  .alert-list{ display: flex; flex-direction: column; gap: 8px; }
+  .alert{
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+    display: flex; align-items: flex-start; gap: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .alert .ic{
+    width: 36px; height: 36px;
+    border-radius: var(--r-full);
+    display:grid; place-items:center;
+    flex-shrink: 0;
+    background: var(--surface-2);
+    font-size: 16px;
+  }
+  .alert.danger .ic{ background: var(--danger-soft); color: var(--danger); }
+  .alert.warning .ic{ background: var(--warning-soft); color: var(--warning); }
+  .alert.info .ic{ background: var(--brand-soft); color: var(--brand); }
+  .alert .body{ flex:1; min-width:0; }
+  .alert .body .top{
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+  }
+  .alert .body .tag{
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--r-full);
+    background: var(--surface-2);
+    font-size: 11px; font-weight: 700; color: var(--text-2);
+  }
+  .alert.danger .body .tag{ background: var(--danger-soft); color: var(--danger); }
+  .alert.warning .body .tag{ background: var(--warning-soft); color: var(--warning); }
+  .alert .body .time{ font-size: 12px; color: var(--text-3); font-weight: 600; }
+  .alert .body .msg{
+    font-size: 14px; font-weight: 600; color: var(--text-1);
+    line-height: 1.4;
+    letter-spacing: -0.2px;
+  }
+  .alert .resolve{
+    margin-top: 8px;
+    padding: 6px 12px;
+    border-radius: var(--r-md);
+    background: var(--text-1);
+    color: #fff; font-size: 12px; font-weight: 700;
+  }
+  .alert.resolved{ opacity: 0.55; }
+  .alert.resolved .body .tag{ background: var(--success-soft); color: var(--success); }
+
+  .tabbar{
+    background: var(--surface);
+    padding: 0 20px;
+    display: flex; gap: 24px;
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 56px; z-index: 5;
+  }
+  .tab{
+    padding: 14px 0;
+    font-size: 15px; font-weight: 700; color: var(--text-3);
+    border-bottom: 2px solid transparent;
+    letter-spacing: -0.2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tab.active{ color: var(--text-1); border-bottom-color: var(--text-1); }
+  .tab .badge{
+    background: var(--danger);
+    color: #fff;
+    font-size: 11px; font-weight: 800;
+    min-width: 18px; height: 18px;
+    border-radius: var(--r-full);
+    display: grid; place-items: center;
+    padding: 0 5px;
+  }
+
+  .chips{
+    display: flex; gap: 6px;
+    padding: 12px 20px;
+    overflow-x: auto;
+  }
+  .chips::-webkit-scrollbar{ display:none; }
+  .chip{
+    padding: 8px 14px;
+    border-radius: var(--r-full);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    font-size: 13px; font-weight: 700; color: var(--text-2);
+    white-space: nowrap;
+  }
+  .chip.active{
+    background: var(--text-1);
+    color: #fff;
+    border-color: var(--text-1);
+  }
+
+  .day-header{
+    font-size: 12px; font-weight: 700; color: var(--text-3);
+    padding: 16px 20px 8px;
+    letter-spacing: -0.1px;
+  }
+  .chat-card{
+    background: var(--surface);
+    margin: 0 20px 8px;
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .chat-card .top{
+    display: flex; justify-content: space-between; align-items:center;
+    margin-bottom: 6px;
+  }
+  .chat-card .who{
+    font-size: 13px; font-weight: 700; color: var(--brand);
+    display: flex; align-items:center; gap: 6px;
+  }
+  .chat-card .who .av{
+    width: 22px; height: 22px;
+    border-radius: var(--r-full);
+    background: var(--brand-soft);
+    display:grid; place-items:center;
+    font-size: 12px;
+  }
+  .chat-card .when{ font-size: 12px; color: var(--text-3); font-weight: 600; }
+  .chat-card .msg{ font-size: 14px; color: var(--text-1); line-height: 1.5; }
+
+  .med-hero{
+    background: linear-gradient(135deg, #3182F6 0%, #5BA0FF 100%);
+    border-radius: var(--r-xl);
+    padding: 22px;
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(49,130,246,0.25);
+  }
+  .med-hero .label{ font-size: 13px; opacity: 0.9; font-weight: 600; }
+  .med-hero .pct{ font-size: 44px; font-weight: 800; letter-spacing: -1.5px; margin: 4px 0; }
+  .med-hero .sub{ font-size: 14px; opacity: 0.9; font-weight: 600; }
+  .med-hero .ring{
+    margin-top: 12px;
+    height: 10px;
+    background: rgba(255,255,255,0.25);
+    border-radius: var(--r-full);
+    overflow: hidden;
+  }
+  .med-hero .ring .fill{ height: 100%; background: #fff; border-radius: var(--r-full); width: 67%; }
+
+  .pill-card{
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    padding: 16px;
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 8px;
+    box-shadow: var(--shadow-sm);
+  }
+  .pill-card .time-block{
+    text-align: center;
+    min-width: 64px;
+    padding: 10px 0;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+  }
+  .pill-card .time-block .hh{ font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+  .pill-card .time-block .ap{ font-size: 11px; color: var(--text-3); font-weight: 700; }
+  .pill-card .info{ flex: 1; }
+  .pill-card .info .nm{ font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
+  .pill-card .info .dose{ font-size: 13px; color: var(--text-3); font-weight: 600; margin-top: 2px; }
+  .pill-card .check{
+    width: 32px; height: 32px;
+    border-radius: var(--r-full);
+    border: 2px solid var(--line-strong);
+    display: grid; place-items: center;
+    color: transparent;
+  }
+  .pill-card.done .check{
+    border-color: var(--success);
+    background: var(--success);
+    color: #fff;
+  }
+  .pill-card.done .info .nm{ text-decoration: line-through; color: var(--text-3); }
+
+  .cal-row{
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+    padding: 8px 20px 0;
+  }
+  .cal-day{
+    aspect-ratio: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: var(--r-md);
+    font-size: 13px;
+    color: var(--text-2);
+    font-weight: 700;
+  }
+  .cal-day .dow{ font-size: 10px; color: var(--text-3); margin-bottom: 2px; font-weight: 700; }
+  .cal-day.active{ background: var(--text-1); color: #fff; }
+  .cal-day.active .dow{ color: rgba(255,255,255,0.7); }
+  .cal-day.has-event::after{
+    content: '';
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--brand);
+    margin-top: 3px;
+  }
+  .cal-day.active.has-event::after{ background: #fff; }
+
+  .event{
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    padding: 16px;
+    display: flex; gap: 14px;
+    margin-bottom: 8px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .event::before{
+    content:'';
+    position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px;
+    background: var(--brand);
+    border-radius: 0 4px 4px 0;
+  }
+  .event.warn::before{ background: var(--warning); }
+  .event.suc::before{ background: var(--success); }
+  .event .t{ font-size: 14px; font-weight: 800; color: var(--text-1); min-width: 54px; }
+  .event .b{ flex:1; }
+  .event .b .ttl{ font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
+  .event .b .desc{ font-size: 13px; color: var(--text-3); font-weight: 600; margin-top: 2px; }
+
+  .profile{
+    background: var(--surface);
+    padding: 24px 20px;
+    display: flex; align-items: center; gap: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .profile .av{
+    width: 64px; height: 64px;
+    border-radius: var(--r-full);
+    background: linear-gradient(135deg, #3182F6, #5BA0FF);
+    color: #fff;
+    display: grid; place-items: center;
+    font-size: 26px; font-weight: 800;
+  }
+  .profile .info .name{ font-size: 19px; font-weight: 800; letter-spacing: -0.4px; }
+  .profile .info .sub{ font-size: 13px; color: var(--text-3); font-weight: 600; margin-top: 2px; }
+
+  .menu-list{
+    background: var(--surface);
+    margin: 12px 0;
+  }
+  .menu-item{
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid var(--line);
+    width: 100%; text-align: left;
+  }
+  .menu-item:last-child{ border-bottom: none; }
+  .menu-item .ic{
+    width: 36px; height: 36px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    color: var(--text-2);
+    display: grid; place-items: center;
+    font-size: 16px;
+  }
+  .menu-item .lab{ flex:1; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+  .menu-item .arr{ color: var(--text-4); font-size: 14px; }
+  .menu-item .toggle{
+    width: 44px; height: 26px;
+    border-radius: var(--r-full);
+    background: var(--line-strong);
+    position: relative;
+  }
+  .menu-item .toggle::after{
+    content:'';
+    position:absolute; top: 2px; left: 2px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .menu-item .toggle.on{ background: var(--brand); }
+  .menu-item .toggle.on::after{ left: 20px; }
+
+  .nav{
+    flex-shrink: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding: 8px 0 24px;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+  }
+  .nav-item{
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px 0;
+    color: var(--text-3);
+    font-size: 11px; font-weight: 700;
+    position: relative;
+  }
+  .nav-item .ic{ font-size: 22px; }
+  .nav-item.active{ color: var(--text-1); }
+  .nav-item .nb{
+    position: absolute;
+    top: 0; right: 26%;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px; font-weight: 800;
+    min-width: 16px; height: 16px;
+    border-radius: var(--r-full);
+    display: grid; place-items: center;
+    padding: 0 4px;
+    border: 2px solid var(--surface);
+  }
+
+  .label-tip{
+    position: fixed;
+    top: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(25,31,40,0.92);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: var(--r-full);
+    font-size: 13px; font-weight: 600;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+  }
+
+  .gap-24{ height: 24px; }
+
+  /* ─── DASHBOARD (실제 앱 매칭) ─── */
+  .dash-hero{
+    margin: 12px 20px 8px;
+    padding: 24px 20px;
+    border-radius: var(--r-xl);
+    background: linear-gradient(135deg, #4FA8FF 0%, #6C8CFF 50%, #8B7CFF 100%);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(99,124,255,0.25);
+    position: relative;
+    overflow: hidden;
+  }
+  .dash-hero::before{
+    content:'';
+    position:absolute; left:0; top:0; bottom:0; width:5px;
+    background: rgba(255,255,255,0.4);
+  }
+  .dash-hero .greet{
+    font-size: 14px; font-weight: 600; opacity: 0.95;
+    margin-bottom: 8px;
+  }
+  .dash-hero .name{
+    font-size: 24px; font-weight: 800;
+    letter-spacing: -0.4px;
+    margin-bottom: 10px;
+  }
+  .dash-hero .date{
+    font-size: 13px; opacity: 0.9; font-weight: 600;
+  }
+
+  .dash-section-title{
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-1);
+    margin: 0 0 12px;
+    letter-spacing: -0.3px;
+  }
+
+  .alert-soft{
+    background: #FFF8E5;
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .alert-soft::before{
+    content:'';
+    position:absolute; left:0; top:0; bottom:0; width:4px;
+    background: #FFB800;
+  }
+  .alert-soft-ic{
+    color: #FFB800;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .alert-soft-txt{
+    font-size: 14px; font-weight: 600;
+    color: var(--text-1);
+    letter-spacing: -0.2px;
+  }
+
+  .stat3-grid{
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  }
+  .stat3-card{
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    padding: 14px 10px;
+    box-shadow: var(--shadow-sm);
+    text-align: left;
+  }
+  .stat3-ic{
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+  .stat3-label{
+    font-size: 12px; font-weight: 700; color: var(--text-2);
+    letter-spacing: -0.2px;
+    margin-bottom: 6px;
+  }
+  .stat3-value{
+    font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .stat3-sub{
+    font-size: 11px; color: var(--text-3); font-weight: 600;
+  }
+
+  .sensor-row-card{
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 18px 8px;
+    display: flex; align-items: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .sensor-row-item{
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .sr-ic{
+    width: 42px; height: 42px;
+    border-radius: var(--r-md);
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+  .sr-name{
+    font-size: 12px; font-weight: 700; color: var(--text-2);
+  }
+  .sr-st{
+    font-size: 13px; font-weight: 800;
+  }
+  .sr-divider{
+    width: 1px; height: 36px;
+    background: var(--line);
+  }
+
+  .med-status-card{
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+  }
+  .med-status-row{
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .med-status-title{
+    font-size: 14px; font-weight: 700; color: var(--text-1);
+  }
+  .med-status-count{
+    font-size: 13px; font-weight: 700; color: var(--brand);
+  }
+  .med-status-bar{
+    height: 6px; background: var(--surface-2);
+    border-radius: var(--r-full);
+    overflow: hidden;
+  }
+  .med-status-fill{
+    height: 100%;
+    background: linear-gradient(90deg, #3182F6, #5BA0FF);
+    border-radius: var(--r-full);
+  }
+
+  .device-row{
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .device-card{
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .device-card.device-blue{
+    background: linear-gradient(135deg, #3182F6, #5BA0FF);
+    color: #fff;
+  }
+  .device-ic{ font-size: 22px; margin-bottom: 8px; }
+  .device-label{ font-size: 13px; font-weight: 700; opacity: 0.95; margin-bottom: 4px; }
+  .device-status{ font-size: 16px; font-weight: 800; }
+  .device-ic-small{ font-size: 18px; margin-bottom: 6px; }
+  .device-label-small{ font-size: 13px; color: var(--text-3); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="label-tip">OASIS · 시니어 케어 앱 (디자인 목업)</div>
+
+<div class="phone">
+  <div class="notch"></div>
+
+  <div class="statusbar">
+    <span>9:41</span>
+    <span class="right">
+      <span>●●●</span>
+      <span>📶</span>
+      <span>🔋</span>
+    </span>
+  </div>
+
+  <div class="pages">
+
+    <!-- ════════ DASHBOARD ════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="topbar">
+        <h1>OASIS</h1>
+        <button class="icon-btn">🔔<span class="dot"></span></button>
+      </div>
+
+      <div class="hero">
+        <div class="greet">2026년 5월 20일 화요일</div>
+        <div class="name">안녕하세요, <span>김다혜</span>님</div>
+        <div class="status-banner warning">
+          <span class="icon">⚠️</span>
+          <span>가스 누출 감지 — 환기 필요</span>
+          <span class="meta">3분 전</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">빠른 실행</h2>
+        <div class="action-grid">
+          <button class="action" onclick="switchPage('camera')">
+            <div class="ic">📹</div>
+            <div class="lab">홈캠</div>
+          </button>
+          <button class="action" onclick="switchPage('med')">
+            <div class="ic suc">💊</div>
+            <div class="lab">복약</div>
+          </button>
+          <button class="action" onclick="switchPage('log')">
+            <div class="ic warn">💬</div>
+            <div class="lab">대화기록</div>
+          </button>
+          <button class="action">
+            <div class="ic dan">📞</div>
+            <div class="lab">긴급통화</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>복약 현황</h2>
+          <span class="more" onclick="switchPage('med')">관리 ›</span>
+        </div>
+        <div class="med-card">
+          <div class="med-row">
+            <span class="title">오늘 복용</span>
+            <span class="count">2 / 3 완료</span>
+          </div>
+          <div class="med-progress"><div class="bar" style="width:67%"></div></div>
+          <div class="next-med">
+            <div class="pill">💊</div>
+            <div class="info">
+              <div class="n">고혈압약 (저녁)</div>
+              <div class="t">오후 7시 · 1정</div>
+            </div>
+            <button class="btn-take">복용</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>오늘의 일정</h2>
+          <span class="more" onclick="switchPage('schedule')">관리 ›</span>
+        </div>
+        <div class="med-card">
+          <div class="med-row">
+            <span class="title">예정된 일정</span>
+            <span class="count">1 / 3 완료</span>
+          </div>
+          <div class="med-progress"><div class="bar" style="width:33%; background: linear-gradient(90deg, #00B96B, #4FD18E);"></div></div>
+          <div class="next-med">
+            <div class="pill" style="background: var(--success-soft); color: var(--success);">📅</div>
+            <div class="info">
+              <div class="n">물리치료</div>
+              <div class="t">오후 2시 · 사하구 보건소</div>
+            </div>
+            <button class="btn-take" style="background: var(--success);">확인</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>센서 모니터링</h2>
+          <span class="more" onclick="switchPage('camera')">홈캠 ›</span>
+        </div>
+        <div class="sensor-card">
+          <div class="sensor-grid">
+            <div class="sensor-item alert">
+              <div class="ic">🚶</div>
+              <div class="text"><div class="name">비활동</div><div class="st">감지됨</div></div>
+            </div>
+            <div class="sensor-item alert">
+              <div class="ic">🔥</div>
+              <div class="text"><div class="name">가스</div><div class="st">누출</div></div>
+            </div>
+            <div class="sensor-item">
+              <div class="ic">🩺</div>
+              <div class="text"><div class="name">낙상</div><div class="st">정상</div></div>
+            </div>
+            <div class="sensor-item">
+              <div class="ic">🛡️</div>
+              <div class="text"><div class="name">재난</div><div class="st">정상</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">오늘의 날씨</h2>
+        <div class="weather">
+          <div class="city">부산 사하구</div>
+          <div class="temp">22°</div>
+          <div class="desc">맑음 · 미세먼지 좋음</div>
+          <div class="note">☀️ 산책하기 좋은 날씨에요</div>
+        </div>
+      </div>
+
+      <div class="gap-24"></div>
+    </div>
+
+    <!-- ════════ MED ════════ -->
+    <div class="page" id="page-med">
+      <div class="topbar">
+        <h1>복약 관리</h1>
+        <button class="icon-btn">＋</button>
+      </div>
+
+      <div class="section">
+        <div class="med-hero">
+          <div class="label">이번 주 복약 달성률</div>
+          <div class="pct">86%</div>
+          <div class="sub">지난 주 대비 ▲ 12% 향상</div>
+          <div class="ring"><div class="fill"></div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">오늘 복용</h2>
+        <div class="pill-card done">
+          <div class="time-block"><div class="hh">8:00</div><div class="ap">AM</div></div>
+          <div class="info"><div class="nm">혈압약</div><div class="dose">아모디핀 · 1정</div></div>
+          <div class="check">✓</div>
+        </div>
+        <div class="pill-card done">
+          <div class="time-block"><div class="hh">12:30</div><div class="ap">PM</div></div>
+          <div class="info"><div class="nm">당뇨약</div><div class="dose">메트포르민 · 1정</div></div>
+          <div class="check">✓</div>
+        </div>
+        <div class="pill-card">
+          <div class="time-block"><div class="hh">7:00</div><div class="ap">PM</div></div>
+          <div class="info"><div class="nm">혈압약 (저녁)</div><div class="dose">아모디핀 · 1정</div></div>
+          <div class="check"></div>
+        </div>
+        <div class="pill-card">
+          <div class="time-block"><div class="hh">10:00</div><div class="ap">PM</div></div>
+          <div class="info"><div class="nm">수면 보조</div><div class="dose">멜라토닌 · 1정</div></div>
+          <div class="check"></div>
+        </div>
+      </div>
+
+      <div class="gap-24"></div>
+    </div>
+
+    <!-- ════════ SCHEDULE ════════ -->
+    <div class="page" id="page-schedule">
+      <div class="topbar">
+        <h1>일정</h1>
+        <button class="icon-btn">＋</button>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">5월 셋째 주</h2>
+        <div class="cal-row">
+          <div class="cal-day"><div class="dow">월</div>18</div>
+          <div class="cal-day has-event"><div class="dow">화</div>19</div>
+          <div class="cal-day active has-event"><div class="dow">수</div>20</div>
+          <div class="cal-day"><div class="dow">목</div>21</div>
+          <div class="cal-day has-event"><div class="dow">금</div>22</div>
+          <div class="cal-day"><div class="dow">토</div>23</div>
+          <div class="cal-day"><div class="dow">일</div>24</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">오늘 일정 3건</h2>
+        <div class="event">
+          <div class="t">09:00</div>
+          <div class="b">
+            <div class="ttl">병원 진료</div>
+            <div class="desc">동아대학교병원 · 내과 김선생님</div>
+          </div>
+        </div>
+        <div class="event warn">
+          <div class="t">14:00</div>
+          <div class="b">
+            <div class="ttl">물리치료</div>
+            <div class="desc">사하구 보건소</div>
+          </div>
+        </div>
+        <div class="event suc">
+          <div class="t">18:30</div>
+          <div class="b">
+            <div class="ttl">가족 식사</div>
+            <div class="desc">아들 가족 방문</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap-24"></div>
+    </div>
+
+    <!-- ════════ LOG ════════ -->
+    <div class="page" id="page-log">
+      <div class="topbar">
+        <h1>기록</h1>
+        <button class="icon-btn">🔍</button>
+      </div>
+
+      <div class="tabbar">
+        <button class="tab active" onclick="switchTab(this,'chat')">대화 기록</button>
+        <button class="tab" onclick="switchTab(this,'alerts')">감지 알림 <span class="badge">2</span></button>
+      </div>
+
+      <div id="tab-chat">
+        <div class="day-header">오늘 · 5월 20일</div>
+        <div class="chat-card">
+          <div class="top">
+            <div class="who"><span class="av">🤖</span> 오아시스 챗봇</div>
+            <div class="when">오전 10:24</div>
+          </div>
+          <div class="msg">오늘 아침 약 복용하셨어요? 따뜻한 물과 함께 드시는 게 좋아요.</div>
+        </div>
+        <div class="chat-card">
+          <div class="top">
+            <div class="who"><span class="av">🤖</span> 오아시스 챗봇</div>
+            <div class="when">오전 11:05</div>
+          </div>
+          <div class="msg">잠깐 산책 다녀오시는 건 어떨까요? 날씨가 정말 좋아요 ☀️</div>
+        </div>
+        <div class="day-header">어제 · 5월 19일</div>
+        <div class="chat-card">
+          <div class="top">
+            <div class="who"><span class="av">🤖</span> 오아시스 챗봇</div>
+            <div class="when">오후 7:00</div>
+          </div>
+          <div class="msg">저녁 약 시간이에요. 식후 30분 후에 드시면 됩니다.</div>
+        </div>
+        <div class="chat-card">
+          <div class="top">
+            <div class="who"><span class="av">🤖</span> 오아시스 챗봇</div>
+            <div class="when">오후 9:30</div>
+          </div>
+          <div class="msg">오늘 하루 수고하셨어요. 좋은 꿈 꾸세요 😊</div>
+        </div>
+        <div class="gap-24"></div>
+      </div>
+
+      <div id="tab-alerts" style="display:none;">
+        <div class="chips">
+          <button class="chip active">전체 4</button>
+          <button class="chip">미해결 2</button>
+          <button class="chip">비활동</button>
+          <button class="chip">가스</button>
+        </div>
+        <div class="section" style="padding-top:0;">
+          <div class="alert-list">
+            <div class="alert danger">
+              <div class="ic">🔥</div>
+              <div class="body">
+                <div class="top">
+                  <span class="tag">가스 · 심각</span>
+                  <span class="time">3분 전</span>
+                </div>
+                <div class="msg">가스 누출 감지 · MQ-5 수치 임계값 초과 (820ppm)</div>
+                <button class="resolve">해결 처리</button>
+              </div>
+            </div>
+            <div class="alert warning">
+              <div class="ic">🚶</div>
+              <div class="body">
+                <div class="top">
+                  <span class="tag">비활동 · 경고</span>
+                  <span class="time">12분 전</span>
+                </div>
+                <div class="msg">30분 이상 움직임이 감지되지 않습니다</div>
+                <button class="resolve">해결 처리</button>
+              </div>
+            </div>
+            <div class="alert info resolved">
+              <div class="ic">🚶</div>
+              <div class="body">
+                <div class="top">
+                  <span class="tag">해결됨</span>
+                  <span class="time">1시간 전</span>
+                </div>
+                <div class="msg">10분 이상 움직임 없음 (자동 해제)</div>
+              </div>
+            </div>
+            <div class="alert info resolved">
+              <div class="ic">🔥</div>
+              <div class="body">
+                <div class="top">
+                  <span class="tag">해결됨</span>
+                  <span class="time">3시간 전</span>
+                </div>
+                <div class="msg">가스 농도 정상 범위 복귀</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gap-24"></div>
+      </div>
+    </div>
+
+    <!-- ════════ CAMERA ════════ -->
+    <div class="page" id="page-camera">
+      <div class="topbar">
+        <h1>홈캠</h1>
+        <button class="icon-btn">🔄</button>
+      </div>
+
+      <div class="section">
+        <div class="status-banner danger">
+          <span class="icon">🚨</span>
+          <span>긴급 상황 감지 — 즉시 확인</span>
+          <span class="meta">실시간</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="cam-frame">
+          <div class="placeholder">
+            <div class="big">📹</div>
+            <div>OASIS CAM · Raspberry Pi</div>
+            <div style="opacity:0.6; margin-top:4px;">실시간 스트리밍</div>
+          </div>
+          <div class="live-pill"><span class="live-dot"></span>LIVE</div>
+          <div class="live-info">
+            <span>거실</span>
+            <span>HD · 30fps</span>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-mini">
+            <div class="l">오늘 발생</div>
+            <div class="v">4건</div>
+          </div>
+          <div class="stat-mini success">
+            <div class="l">해결</div>
+            <div class="v">2건</div>
+          </div>
+          <div class="stat-mini danger">
+            <div class="l">미해결</div>
+            <div class="v">2건</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">실시간 센서</h2>
+        <div class="sensor-card">
+          <div class="sensor-grid">
+            <div class="sensor-item alert">
+              <div class="ic">🚶</div>
+              <div class="text"><div class="name">비활동</div><div class="st">감지됨</div></div>
+            </div>
+            <div class="sensor-item alert">
+              <div class="ic">🔥</div>
+              <div class="text"><div class="name">가스 820ppm</div><div class="st">위험</div></div>
+            </div>
+            <div class="sensor-item">
+              <div class="ic">🩺</div>
+              <div class="text"><div class="name">낙상</div><div class="st">정상</div></div>
+            </div>
+            <div class="sensor-item">
+              <div class="ic">🛡️</div>
+              <div class="text"><div class="name">재난</div><div class="st">정상</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>최근 감지 기록</h2>
+          <span class="more" onclick="switchPage('log')">전체보기 ›</span>
+        </div>
+        <div class="alert-list">
+          <div class="alert danger">
+            <div class="ic">🔥</div>
+            <div class="body">
+              <div class="top">
+                <span class="tag">가스</span>
+                <span class="time">3분 전</span>
+              </div>
+              <div class="msg">MQ-5 수치 임계값 초과 (820ppm)</div>
+              <button class="resolve">해결</button>
+            </div>
+          </div>
+          <div class="alert warning">
+            <div class="ic">🚶</div>
+            <div class="body">
+              <div class="top">
+                <span class="tag">비활동</span>
+                <span class="time">12분 전</span>
+              </div>
+              <div class="msg">30분 이상 움직임 없음</div>
+              <button class="resolve">해결</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap-24"></div>
+    </div>
+
+    <!-- ════════ SETTINGS ════════ -->
+    <div class="page" id="page-settings">
+      <div class="topbar">
+        <h1>설정</h1>
+      </div>
+
+      <div class="profile">
+        <div class="av">김</div>
+        <div class="info">
+          <div class="name">김다혜</div>
+          <div class="sub">kimdahye@oasis.kr · 보호자 모드</div>
+        </div>
+      </div>
+
+      <div class="menu-list">
+        <button class="menu-item">
+          <div class="ic">🔔</div>
+          <div class="lab">알림 수신</div>
+          <div class="toggle on"></div>
+        </button>
+        <button class="menu-item">
+          <div class="ic">🌙</div>
+          <div class="lab">다크 모드</div>
+          <div class="toggle"></div>
+        </button>
+        <button class="menu-item">
+          <div class="ic">🔊</div>
+          <div class="lab">큰 소리 알림</div>
+          <div class="toggle on"></div>
+        </button>
+      </div>
+
+      <div class="menu-list">
+        <button class="menu-item">
+          <div class="ic">📹</div>
+          <div class="lab">홈캠 연결 설정</div>
+          <div class="arr">›</div>
+        </button>
+        <button class="menu-item">
+          <div class="ic">⚙️</div>
+          <div class="lab">감지 민감도</div>
+          <div class="arr">›</div>
+        </button>
+        <button class="menu-item">
+          <div class="ic">👨‍👩‍👧</div>
+          <div class="lab">보호자 연결</div>
+          <div class="arr">›</div>
+        </button>
+        <button class="menu-item">
+          <div class="ic">📞</div>
+          <div class="lab">긴급 연락처</div>
+          <div class="arr">›</div>
+        </button>
+      </div>
+
+      <div class="menu-list">
+        <button class="menu-item">
+          <div class="ic">ℹ️</div>
+          <div class="lab">앱 정보</div>
+          <div class="arr">›</div>
+        </button>
+        <button class="menu-item">
+          <div class="ic">🚪</div>
+          <div class="lab" style="color:var(--danger)">로그아웃</div>
+          <div class="arr">›</div>
+        </button>
+      </div>
+
+      <div class="gap-24"></div>
+    </div>
+
+  </div>
+
+  <nav class="nav">
+    <button class="nav-item active" onclick="switchPage('dashboard')">
+      <span class="ic">🏠</span>
+      <span>홈</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('med')">
+      <span class="ic">💊</span>
+      <span>복약</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('schedule')">
+      <span class="ic">📅</span>
+      <span>일정</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('log')">
+      <span class="ic">💬</span>
+      <span>기록</span>
+      <span class="nb">2</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('camera')">
+      <span class="ic">📹</span>
+      <span>홈캠</span>
+    </button>
+  </nav>
+
+</div>
+
+<script>
+  const navMap = { dashboard:0, med:1, schedule:2, log:3, camera:4 };
+  function switchPage(name){
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if(navMap[name] !== undefined){
+      document.querySelectorAll('.nav-item')[navMap[name]].classList.add('active');
+    }
+  }
+  function switchTab(btn, name){
+    btn.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-chat').style.display = (name === 'chat') ? 'block' : 'none';
+    document.getElementById('tab-alerts').style.display = (name === 'alerts') ? 'block' : 'none';
+  }
+</script>
+
+</body>
+</html>
