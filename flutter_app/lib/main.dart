@@ -8,14 +8,17 @@ import 'pages/log_page.dart';
 import 'pages/camera_page.dart';
 import 'pages/settings_page.dart';
 import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-// ── 전역 토큰 저장소 ──
+// ── 전역 상태 저장소 ──
 class AppState {
   static String? accessToken;
   static String? username;
   static String? nickname;
+  static String role = '';
+  static int userId = 0;
 }
 
 void main() async {
@@ -173,7 +176,12 @@ class _MainPageState extends State<MainPage> {
               AppState.accessToken = null;
               AppState.username = null;
               AppState.nickname = null;
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+              AppState.role = '';
+              AppState.userId = 0;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (r) => false,
+              );
             },
           )
         ],

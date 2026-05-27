@@ -4,8 +4,45 @@ import 'dart:convert';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../main.dart';
+import 'senior_main_page.dart';
+import 'senior_select_screen.dart';
 
-const String _serverUrl = 'http://172.27.153.11:8000';
+const String _serverUrl = 'http://172.27.153.182:8000';
+
+// 로그인 후 역할에 따라 화면 분기
+Future<void> _routeAfterLogin(BuildContext ctx, String token, String username) async {
+  AppState.accessToken = token;
+  AppState.username = username;
+
+  try {
+    final res = await http.get(
+      Uri.parse('$_serverUrl/auth/me'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 5));
+    if (res.statusCode == 200) {
+      final d = jsonDecode(res.body);
+      AppState.role = (d['role'] as String?) ?? '';
+      AppState.userId = (d['id'] as int?) ?? 0;
+      AppState.nickname = (d['nickname'] as String?) ?? username;
+    }
+  } catch (_) {}
+
+  if (!ctx.mounted) return;
+
+  Widget dest;
+  if (AppState.role == 'senior') {
+    dest = const SeniorMainPage();
+  } else if (AppState.role == 'guardian') {
+    dest = SeniorSelectScreen(guardianId: AppState.userId);
+  } else {
+    dest = const MainPage();
+  }
+
+  Navigator.of(ctx).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => dest),
+    (r) => false,
+  );
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,9 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        AppState.accessToken = data['access_token'];
-        AppState.username = id;
-        if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
+        if (mounted) await _routeAfterLogin(context, data['access_token'], id);
       } else {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('아이디 또는 비밀번호가 틀렸어요'), backgroundColor: Colors.red));
       }
@@ -121,9 +156,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ));
           }
         } else {
-          AppState.accessToken = data['access_token'];
-          AppState.username = data['username'] ?? 'kakao_user';
-          if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
+          final uname = data['username'] ?? 'kakao_user';
+          if (mounted) await _routeAfterLogin(context, data['access_token'], uname);
         }
       } else if (res.statusCode == 404 && !isSignup) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('계정을 찾을 수 없습니다. 회원가입을 진행해주세요'), backgroundColor: Colors.red));
@@ -217,9 +251,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ));
         }
       } else {
-        AppState.accessToken = data['access_token'];
-        AppState.username = data['username'] ?? 'google_user';
-        if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
+        final uname = data['username'] ?? 'google_user';
+        if (mounted) await _routeAfterLogin(context, data['access_token'], uname);
       }
     } else if (res.statusCode == 404 && !isSignup) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('계정을 찾을 수 없습니다. 회원가입을 진행해주세요'), backgroundColor: Colors.red));
@@ -575,9 +608,8 @@ class _KakaoSignupAdditionalInfoScreenState extends State<KakaoSignupAdditionalI
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        AppState.accessToken = data['access_token'];
-        AppState.username = data['username'] ?? name;
-        if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const MainPage()), (route) => false);
+        final uname = data['username'] ?? name;
+        if (mounted) await _routeAfterLogin(context, data['access_token'], uname);
       } else {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('회원가입 완료 실패'), backgroundColor: Colors.red));
       }
@@ -712,9 +744,8 @@ class _GoogleSignupAdditionalInfoScreenState extends State<GoogleSignupAdditiona
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        AppState.accessToken = data['access_token'];
-        AppState.username = data['username'] ?? name;
-        if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const MainPage()), (route) => false);
+        final uname = data['username'] ?? name;
+        if (mounted) await _routeAfterLogin(context, data['access_token'], uname);
       } else {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('회원가입 완료 실패'), backgroundColor: Colors.red));
       }
