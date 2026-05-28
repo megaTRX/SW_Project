@@ -9,6 +9,8 @@ import 'pages/camera_page.dart';
 import 'pages/settings_page.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/senior_main_page.dart';
+import 'screens/senior_select_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 
@@ -52,7 +54,43 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'SF Pro',
       ),
-      home: const SplashScreen(),
+      home: const _DebugHome(), // TODO: restore to SplashScreen for production
+    );
+  }
+}
+
+// ── 디버그 전용 홈 (토큰 자동 세팅 후 화면 이동) ──
+class _DebugHome extends StatefulWidget {
+  const _DebugHome();
+  @override
+  State<_DebugHome> createState() => _DebugHomeState();
+}
+
+class _DebugHomeState extends State<_DebugHome> {
+  @override
+  void initState() {
+    super.initState();
+    // 첫 프레임 이후 네비게이션 (Navigator 준비 완료 후)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoLogin());
+  }
+
+  void _autoLogin() {
+    // 디버그 전용: AppState 직접 세팅 (네트워크 없이)
+    AppState.accessToken = 'debug_token';
+    AppState.username = 'gurdian1';
+    AppState.nickname = '김다혜';
+    AppState.role = 'guardian';
+    AppState.userId = 5;
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => SeniorSelectScreen(guardianId: AppState.userId)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

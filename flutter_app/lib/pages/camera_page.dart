@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../data/api_service.dart';
 
-const String _streamUrl = 'http://172.27.153.11:8000/video';
+const String _streamUrl = 'http://localhost:8000/video';
 const int _refreshInterval = 30;
 
 class CameraPage extends StatefulWidget {
@@ -72,7 +72,17 @@ class _CameraPageState extends State<CameraPage>
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) => setState(() => _isConnected = true),
+        onPageFinished: (_) async {
+          // JSON 에러 페이지인지 확인 ({"detail":"Not Found"} 등)
+          try {
+            final result = await _webViewController.runJavaScriptReturningResult(
+              "document.body ? document.body.innerText.trim().startsWith('{') : true",
+            );
+            if (mounted) setState(() => _isConnected = result.toString() != 'true');
+          } catch (_) {
+            if (mounted) setState(() => _isConnected = false);
+          }
+        },
         onWebResourceError: (_) => setState(() => _isConnected = false),
       ))
       ..loadRequest(Uri.parse(_streamUrl));
@@ -253,12 +263,43 @@ class _CameraPageState extends State<CameraPage>
   Widget _buildCameraView() {
     return Stack(
       children: [
+        // WebView는 항상 렌더링 (연결 시 표시)
         Container(
           width: double.infinity,
           height: 260,
           color: const Color(0xFF0F172A),
           child: WebViewWidget(controller: _webViewController),
         ),
+        // Not Found / 미연결 시 네이비 블루 오버레이
+        if (!_isConnected)
+          Container(
+            width: double.infinity,
+            height: 260,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0A1628), Color(0xFF0D2240)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.videocam_off_rounded,
+                    color: Colors.white.withOpacity(0.28), size: 52),
+                const SizedBox(height: 14),
+                Text('카메라 연결 대기 중',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Text('서버와 연결되면 자동으로 시작됩니다',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.38), fontSize: 12)),
+              ],
+            ),
+          ),
         // LIVE 배지
         Positioned(
           top: 12, left: 12,
@@ -403,55 +444,52 @@ class _CameraPageState extends State<CameraPage>
       children: [
         _buildSectionHeader('센서 모니터링'),
         const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 1.6,
-          children: [
-            _SensorCard(
-              icon: Icons.accessibility_new_rounded,
-              label: '비활동 감지',
-              status: _hasInactivityAlert ? '비활동 감지됨' : '정상',
-              isAlert: _hasInactivityAlert,
-              count: _inactivityAlerts.length,
-              gradient: _hasInactivityAlert
-                  ? const LinearGradient(colors: [Color(0xFFFEE2E2), Color(0xFFFEF2F2)])
-                  : const LinearGradient(colors: [Color(0xFFECFDF5), Color(0xFFF0FDF4)]),
-              iconColor: _hasInactivityAlert ? const Color(0xFFEF4444) : const Color(0xFF10B981),
-            ),
-            _SensorCard(
-              icon: Icons.local_fire_department_rounded,
-              label: '가스 감지',
-              status: _hasGasAlert ? '가스 누출 감지' : '정상',
-              isAlert: _hasGasAlert,
-              count: _gasAlerts.length,
-              gradient: _hasGasAlert
-                  ? const LinearGradient(colors: [Color(0xFFFFF7ED), Color(0xFFFFFBEB)])
-                  : const LinearGradient(colors: [Color(0xFFECFDF5), Color(0xFFF0FDF4)]),
-              iconColor: _hasGasAlert ? const Color(0xFFF97316) : const Color(0xFF10B981),
-            ),
-            _SensorCard(
-              icon: Icons.personal_injury_rounded,
-              label: '낙상 감지',
-              status: '정상',
-              isAlert: false,
-              count: 0,
-              gradient: const LinearGradient(colors: [Color(0xFFECFDF5), Color(0xFFF0FDF4)]),
-              iconColor: const Color(0xFF10B981),
-            ),
-            _SensorCard(
-              icon: Icons.security_rounded,
-              label: '재난 감지',
-              status: '정상',
-              isAlert: false,
-              count: 0,
-              gradient: const LinearGradient(colors: [Color(0xFFECFDF5), Color(0xFFF0FDF4)]),
-              iconColor: const Color(0xFF10B981),
-            ),
-          ],
+        // 3개 센서를 균등 Row로 배치 (빈 칸 없음)
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _SensorCard(
+                  icon: Icons.accessibility_new_rounded,
+                  label: '비활동 감지',
+                  status: _hasInactivityAlert ? '감지됨' : '정상',
+                  isAlert: _hasInactivityAlert,
+                  count: _inactivityAlerts.length,
+                  gradient: _hasInactivityAlert
+                      ? const LinearGradient(colors: [Color(0xFFFEE2E2), Color(0xFFFEF2F2)])
+                      : const LinearGradient(colors: [Color(0xFFECFDF5), Color(0xFFF0FDF4)]),
+                  iconColor: _hasInactivityAlert ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _SensorCard(
+                  icon: Icons.local_fire_department_rounded,
+                  label: '가스 감지',
+                  status: _hasGasAlert ? '누출 감지' : '정상',
+                  isAlert: _hasGasAlert,
+                  count: _gasAlerts.length,
+                  gradient: _hasGasAlert
+                      ? const LinearGradient(colors: [Color(0xFFFFF7ED), Color(0xFFFFFBEB)])
+                      : const LinearGradient(colors: [Color(0xFFECFDF5), Color(0xFFF0FDF4)]),
+                  iconColor: _hasGasAlert ? const Color(0xFFF97316) : const Color(0xFF10B981),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _SensorCard(
+                  icon: Icons.personal_injury_rounded,
+                  label: '낙상 감지',
+                  status: '정상',
+                  isAlert: false,
+                  count: 0,
+                  gradient: const LinearGradient(colors: [Color(0xFFECFDF5), Color(0xFFF0FDF4)]),
+                  iconColor: const Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );

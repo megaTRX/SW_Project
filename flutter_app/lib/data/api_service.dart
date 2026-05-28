@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? "";
 final String url = "https://api.openweathermap.org/data/2.5/weather?q=Seoul&appid=$apiKey&units=metric";
 
-const String baseUrl = 'http://172.27.32.104:8000';
+const String baseUrl = 'http://localhost:8000';
 
 class ApiService {
 
@@ -243,6 +243,24 @@ class ApiService {
       print('알림 해결 오류: $e');
       return false;
     }
+  }
+
+  // ===== 날씨 =====
+  static Future<Map<String, dynamic>?> getWeather() async {
+    try {
+      final res = await http.get(Uri.parse(url));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return {
+          'temp': (data['main']['temp'] as num).round(),
+          'desc': (data['weather'][0]['description'] as String? ?? ''),
+          'main': (data['weather'][0]['main'] as String? ?? 'Clear'),
+        };
+      }
+    } catch (e) {
+      print('날씨 조회 오류: $e');
+    }
+    return null;
   }
 
   // ===== 미해결 알림만 조회 =====

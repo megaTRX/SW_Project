@@ -6,6 +6,7 @@ import '../widgets/banner_widget.dart';
 import '../models/log_item.dart';
 import '../widgets/log_card.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../main.dart';
 
 class DashboardPage extends StatefulWidget {
   final Function(int) onTabChange;
@@ -26,7 +27,7 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Map> _meds = [];
   List<Map> _scheds = [];
 
-  static const String _baseUrl = 'http://172.27.153.11:8000';
+  static const String _baseUrl = 'http://localhost:8000';
   String get _weatherApiKey => dotenv.env['WEATHER_API_KEY'] ?? '';
 
 
@@ -139,6 +140,14 @@ class _DashboardPageState extends State<DashboardPage> {
     }).toList();
   }
 
+  String _resolveNickname() {
+    final n = AppState.nickname ?? AppState.username;
+    if (n == null || n.isEmpty) return '관리자';
+    return n;
+  }
+
+  String _weekdayStr(int d) => ['월', '화', '수', '목', '금', '토', '일'][d - 1] + '요일';
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -151,31 +160,38 @@ class _DashboardPageState extends State<DashboardPage> {
     final todayScheds = _getTodayScheds();
     final todayRemaining = _getTodayRemainingScheds();
 
+    final nickname = _resolveNickname();
+
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 인사 섹션 — 목업 스타일 (흰 배경, 둥근 하단)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(28),
+                bottomRight: Radius.circular(28),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(greeting, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                Text(greeting, style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8))),
+                const SizedBox(height: 8),
+                Text(
+                  '$nickname님, 환영해요 👋',
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                ),
                 const SizedBox(height: 6),
-                const Text('관리자님, 환영해요 👋',
-                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text('${now.year}년 ${now.month}월 ${now.day}일',
-                    style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                Text(
+                  '${now.year}년 ${now.month}월 ${now.day}일 ${_weekdayStr(now.weekday)}',
+                  style: const TextStyle(fontSize: 15, color: Color(0xFF94A3B8)),
+                ),
               ],
             ),
           ),

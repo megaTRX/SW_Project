@@ -50,35 +50,35 @@ class _MedPageState extends State<MedPage> {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(28),
+                bottomRight: Radius.circular(28),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('오늘의 복약', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                const SizedBox(height: 6),
+                const Text('오늘의 복약', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 8),
                 Text('$taken / $total 완료',
-                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(color: Color(0xFF6366F1), fontSize: 30, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 16),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                    minHeight: 8,
+                    backgroundColor: const Color(0xFFE2E8F0),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                    minHeight: 10,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   progress == 1.0 ? '🎉 오늘 복약을 모두 완료했어요!' : '${total - taken}개 복약이 남아있어요',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 15),
                 ),
               ],
             ),

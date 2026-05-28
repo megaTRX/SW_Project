@@ -7,7 +7,7 @@ import '../main.dart';
 import 'senior_main_page.dart';
 import 'senior_select_screen.dart';
 
-const String _serverUrl = 'http://172.27.153.182:8000';
+const String _serverUrl = 'http://localhost:8000';
 
 // 로그인 후 역할에 따라 화면 분기
 Future<void> _routeAfterLogin(BuildContext ctx, String token, String username) async {
@@ -30,12 +30,14 @@ Future<void> _routeAfterLogin(BuildContext ctx, String token, String username) a
   if (!ctx.mounted) return;
 
   Widget dest;
-  if (AppState.role == 'senior') {
-    dest = const SeniorMainPage();
-  } else if (AppState.role == 'guardian') {
+  if (AppState.role == 'guardian') {
+    dest = SeniorSelectScreen(guardianId: AppState.userId);
+  } else if (AppState.role == 'admin') {
+    // 관리자도 guardian 뷰 사용 (어르신 연결 현황 확인)
     dest = SeniorSelectScreen(guardianId: AppState.userId);
   } else {
-    dest = const MainPage();
+    // senior 또는 기타 역할 → 어르신 화면
+    dest = const SeniorMainPage();
   }
 
   Navigator.of(ctx).pushAndRemoveUntil(
