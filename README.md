@@ -36,24 +36,36 @@ SW_Project/
 
 ## 🚀 시작하기
 
-### 1. 파이썬 가상환경 설정
-실행하려는 모듈에 따라 두 가지 가상환경 중 하나를 선택하여 설정합니다. 프로젝트 루트 디렉토리에서 아래 명령어를 실행하세요.
+### 1. 파이썬 가상환경 설정 및 라이브러리 설치
+실행하려는 모듈에 따라 두 가지 가상환경 중 하나를 선택하여 설정하고 필요한 라이브러리를 다운로드합니다.
 
 #### 옵션 A: 챗봇 및 센서 환경 (`env`)
 GenAI, Groq, Pygame, 하드웨어 바인딩(CircuitPython 등)이 포함된 환경입니다.
-```bash
-python -m venv env
-source env/bin/activate
-pip install -r requirements_env.txt
-```
+
+* **방법 1: requirements 파일을 사용하여 한 번에 라이브러리 다운로드 (권장)**
+  ```bash
+  python -m venv env
+  source env/bin/activate  # Windows 환경: env\Scripts\activate
+  pip install -r requirements_env.txt
+  ```
+* **방법 2: 터미널 명령어로 핵심 패키지만 직접 개별 다운로드**
+  ```bash
+  pip install google-genai groq gTTS pygame sounddevice soundfile RPi.GPIO rpi_ws281x RPLCD smbus2 adafruit-circuitpython-mcp3xxx adafruit-blinka
+  ```
 
 #### 옵션 B: AI 음성 비서 및 카메라 환경 (`myenv`)
 Edge-TTS, Flask 서버, OpenCV, Scipy 및 각종 미디어 인터페이스 패키지가 포함된 환경입니다.
-```bash
-python -m venv myenv
-source myenv/bin/activate
-pip install -r requirements_myenv.txt
-```
+
+* **방법 1: requirements 파일을 사용하여 한 번에 라이브러리 다운로드 (권장)**
+  ```bash
+  python -m venv myenv
+  source myenv/bin/activate  # Windows 환경: myenv\Scripts\activate
+  pip install -r requirements_myenv.txt
+  ```
+* **방법 2: 터미널 명령어로 핵심 패키지만 직접 개별 다운로드**
+  ```bash
+  pip install Flask edge-tts opencv-python sounddevice soundfile pydantic numpy groq google-genai gtts aiohttp
+  ```
 
 ---
 
