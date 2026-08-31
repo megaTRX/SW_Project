@@ -18,6 +18,9 @@ from gtts import gTTS
 from gpiozero import PWMOutputDevice
 from datetime import datetime
 import pygame
+from dotenv import load_dotenv
+
+load_dotenv()
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
