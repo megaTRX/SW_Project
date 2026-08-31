@@ -99,10 +99,44 @@ python my_ai_project/main.py
 
 라즈베리파이용 확장 LCD 디스플레이 실드를 사용하는 경우, `LCD-show/` 폴더 내에 있는 모델명에 맞는 설치 스크립트를 실행합니다.
 
+특히, 온/오프라인 쇼핑몰에서 주로 판매되는 **SZFYDOSH** 브랜드의 라즈베리파이용 디스플레이 제품군은 이 저장소에 포함된 디바이스 드라이버 스크립트로 편리하게 설정하여 사용할 수 있습니다.
+
 > [!IMPORTANT]
 > **반드시 `LCD-show/` 디렉토리 내부로 이동한 후 설치 스크립트를 실행해야 합니다.** 스크립트 내부에서 설정 리소스 폴더(boot, etc, usr 등)를 상대 경로로 참조하여 설치를 진행하기 때문입니다.
 
-### 드라이버 설치 단계
+### 🏷️ SZFYDOSH 디스플레이 주요 모델별 설치 명령어
+
+#### 1. SZFYDOSH 3.5인치 SPI 디스플레이 (일반형 - MPI3501)
+* **상세 스펙**: 320x480 해상도, SPI 인터페이스, XPT2046 감압식 터치 컨트롤러 탑재
+* **설치 명령어**:
+  ```bash
+  cd SW_Project/LCD-show/
+  chmod -R 755 .
+  sudo ./LCD35-show
+  ```
+  *(설치 완료 후 시스템이 자동으로 재부팅되며, 화면과 터치 입력이 활성화됩니다.)*
+
+#### 2. SZFYDOSH MHS-3.5인치 SPI 디스플레이 (고속형 - MHS3528 / MHS35IPS)
+* **상세 스펙**: 320x480 해상도, 고속 SPI 인터페이스 및 고시야각(IPS) 패널 탑재
+* **설치 명령어**:
+  ```bash
+  cd SW_Project/LCD-show/
+  chmod -R 755 .
+  sudo ./MHS35-show
+  ```
+
+#### 3. SZFYDOSH 5.0인치 HDMI 터치 디스플레이 (MPI5008 / LCD5)
+* **상세 스펙**: 800x480 해상도, HDMI 비디오 입력, GPIO 핀을 활용한 감압식 터치 입력
+* **설치 명령어**:
+  ```bash
+  cd SW_Project/LCD-show/
+  chmod -R 755 .
+  sudo ./LCD5-show
+  ```
+
+---
+
+### ⚙️ 일반 드라이버 설치 단계
 1. 저장소를 클론한 후 드라이버 폴더로 이동하여 실행 권한을 부여합니다:
    ```bash
    git clone https://github.com/megaTRX/SW_Project.git
@@ -133,3 +167,10 @@ cd SW_Project/LCD-show/
 sudo ./rotate.sh 90
 ```
 *(위의 `90` 부분을 필요에 따라 `0`, `180`, `270`으로 변경하여 화면 각도를 제어할 수 있습니다).*
+
+### 🔌 HDMI 모니터로 화면 복구 방법
+LCD 대신 다시 기존의 일반 HDMI 모니터 출력으로 되돌리고 싶다면 다음 명령을 수행합니다:
+```bash
+cd SW_Project/LCD-show/
+sudo ./LCD-hdmi
+```
